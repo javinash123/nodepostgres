@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { ChartGantt, BarChart3, FolderKanban, Users, FileStack, LogOut } from "lucide-react";
+import { ChartGantt, BarChart3, FolderKanban, Users, UserCheck, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logout } from "../lib/auth";
@@ -9,6 +9,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Clients", href: "/clients", icon: Users },
+  { name: "Employees", href: "/employees", icon: UserCheck },
 ];
 
 export function Sidebar() {

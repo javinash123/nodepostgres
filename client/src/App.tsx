@@ -10,6 +10,7 @@ import Dashboard from "./pages/dashboard";
 import Projects from "./pages/projects";
 import ProjectDetails from "./pages/project-details";
 import Clients from "./pages/clients";
+import Employees from "./pages/employees";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedApp() {
@@ -22,6 +23,7 @@ function AuthenticatedApp() {
       <Route path="/projects" component={Projects} />
       <Route path="/projects/:id" component={ProjectDetails} />
       <Route path="/clients" component={Clients} />
+      <Route path="/employees" component={Employees} />
       <Route component={NotFound} />
     </Switch>
   );

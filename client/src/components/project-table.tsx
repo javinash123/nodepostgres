@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Eye, Plus, Trash2, Kanban, List } from "lucide-react";
+import { Edit2, Eye, Plus, Trash2, Kanban, List, Users } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -78,9 +78,9 @@ export function ProjectTable() {
   };
 
   const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'INR'
     }).format(Number(amount));
   };
 
@@ -117,6 +117,13 @@ export function ProjectTable() {
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Due:</span>
                       <span>{formatDate(project.endDate)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        Team:
+                      </span>
+                      <span data-testid={`text-team-count-${project.id}`}>{project.assignedEmployees?.length || 0}</span>
                     </div>
                     <div className="flex gap-1 pt-2">
                       <Link href={`/projects/${project.id}`}>
@@ -213,6 +220,7 @@ export function ProjectTable() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Project</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Client</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Team</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">End Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
@@ -221,7 +229,7 @@ export function ProjectTable() {
             <tbody className="bg-card divide-y divide-border">
               {projects?.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
                     No projects found. Create your first project to get started.
                   </td>
                 </tr>
@@ -243,6 +251,12 @@ export function ProjectTable() {
                       >
                         {project.status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground" data-testid={`project-team-${project.id}`}>
+                      <div className="flex items-center gap-1">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span>{project.assignedEmployees?.length || 0}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground" data-testid={`project-end-date-${project.id}`}>
                       {formatDate(project.endDate)}

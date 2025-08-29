@@ -12,8 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { ProjectWithDetails, Client } from "@shared/schema";
-import { CloudUpload, X, Lock } from "lucide-react";
+import { ProjectWithDetails, Client, Employee } from "@shared/schema";
+import { CloudUpload, X, Lock, UserCheck } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const projectFormSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -28,6 +29,7 @@ const projectFormSchema = z.object({
   status: z.string().default("planning"),
   clientSource: z.string().optional(),
   credentials: z.string().optional(),
+  assignedEmployees: z.array(z.string()).optional().default([]),
 });
 
 type ProjectFormData = z.infer<typeof projectFormSchema>;
@@ -47,6 +49,10 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
     queryKey: ['/api/clients'],
   });
 
+  const { data: employees } = useQuery<Employee[]>({
+    queryKey: ['/api/employees'],
+  });
+
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
@@ -62,6 +68,7 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
       status: "planning",
       clientSource: "",
       credentials: "",
+      assignedEmployees: [],
     },
   });
 
@@ -84,6 +91,7 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
         status: project.status,
         clientSource: project.clientSource || "",
         credentials: project.credentials || "",
+        assignedEmployees: project.assignedEmployees?.map(emp => emp.id) || [],
       });
     } else {
       form.reset({
@@ -104,10 +112,21 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
   }, [project, form]);
 
   const createProjectMutation = useMutation({
-    mutationFn: (data: ProjectFormData) => apiRequest('POST', '/api/projects', data),
-    onSuccess: async (response) => {
+    mutationFn: async (data: ProjectFormData) => {
+      const { assignedEmployees, ...projectData } = data;
+      const response = await apiRequest('POST', '/api/projects', projectData);
       const newProject = await response.json();
       
+      // Assign employees to the project
+      if (assignedEmployees && assignedEmployees.length > 0) {
+        for (const employeeId of assignedEmployees) {
+          await apiRequest('POST', `/api/projects/${newProject.id}/employees`, { employeeId });
+        }
+      }
+      
+      return { response, newProject };
+    },
+    onSuccess: async ({ newProject }) => {
       // Upload files if any
       if (selectedFiles.length > 0) {
         const formData = new FormData();
@@ -143,10 +162,29 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
   });
 
   const updateProjectMutation = useMutation({
-    mutationFn: (data: ProjectFormData) => apiRequest('PUT', `/api/projects/${project!.id}`, data),
+    mutationFn: async (data: ProjectFormData) => {
+      const { assignedEmployees, ...projectData } = data;
+      
+      // Update project data
+      const response = await apiRequest('PUT', `/api/projects/${project!.id}`, projectData);
+      
+      // Update employee assignments
+      if (assignedEmployees) {
+        // First remove all existing assignments
+        await apiRequest('DELETE', `/api/projects/${project!.id}/employees`);
+        
+        // Then add new assignments
+        for (const employeeId of assignedEmployees) {
+          await apiRequest('POST', `/api/projects/${project!.id}/employees`, { employeeId });
+        }
+      }
+      
+      return response;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${project!.id}`] });
       toast({
         title: "Project updated",
         description: "The project has been successfully updated.",
@@ -210,7 +248,7 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
             <div>
               <Label htmlFor="clientId">Client Name *</Label>
               <Select 
-                value={form.watch("clientId")} 
+                value={form.watch("clientId") || ""} 
                 onValueChange={(value) => form.setValue("clientId", value)}
               >
                 <SelectTrigger data-testid="select-client">
@@ -321,7 +359,7 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
             </div>
             
             <div>
-              <Label htmlFor="budget">Budget ($) *</Label>
+              <Label htmlFor="budget">Budget (₹) *</Label>
               <Input
                 id="budget"
                 type="number"
@@ -372,6 +410,45 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
               <Lock className="mr-1" size={12} />
               This field is encrypted and secure
             </p>
+          </div>
+          
+          <div>
+            <Label>Assigned Employees</Label>
+            <Card className="p-4">
+              <div className="space-y-3">
+                {employees?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No employees available. Create employees first.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {employees?.map((employee) => (
+                      <div key={employee.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`employee-${employee.id}`}
+                          checked={form.watch("assignedEmployees").includes(employee.id)}
+                          onCheckedChange={(checked) => {
+                            const currentEmployees = form.watch("assignedEmployees");
+                            if (checked) {
+                              form.setValue("assignedEmployees", [...currentEmployees, employee.id]);
+                            } else {
+                              form.setValue("assignedEmployees", currentEmployees.filter(id => id !== employee.id));
+                            }
+                          }}
+                          data-testid={`checkbox-employee-${employee.id}`}
+                        />
+                        <label 
+                          htmlFor={`employee-${employee.id}`}
+                          className="text-sm cursor-pointer flex items-center gap-2"
+                        >
+                          <UserCheck className="h-4 w-4 text-muted-foreground" />
+                          <span>{employee.name}</span>
+                          <span className="text-muted-foreground">({employee.employeeCode})</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
           </div>
           
           {!project && (

@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertProjectSchema, insertProjectExtensionSchema } from "@shared/schema";
+import { insertClientSchema, insertProjectSchema, insertProjectExtensionSchema, insertEmployeeSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -267,6 +267,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(extension);
     } catch (error) {
       res.status(400).json({ message: 'Invalid extension data' });
+    }
+  });
+
+  // Employee routes
+  app.get("/api/employees", requireAuth, async (req, res) => {
+    try {
+      const employees = await storage.getAllEmployees();
+      res.json(employees);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch employees' });
+    }
+  });
+
+  app.post("/api/employees", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertEmployeeSchema.parse(req.body);
+      const employee = await storage.createEmployee(validatedData);
+      res.status(201).json(employee);
+    } catch (error) {
+      res.status(400).json({ message: 'Invalid employee data' });
+    }
+  });
+
+  app.put("/api/employees/:id", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertEmployeeSchema.partial().parse(req.body);
+      const employee = await storage.updateEmployee(req.params.id, validatedData);
+      if (employee) {
+        res.json(employee);
+      } else {
+        res.status(404).json({ message: 'Employee not found' });
+      }
+    } catch (error) {
+      res.status(400).json({ message: 'Invalid employee data' });
+    }
+  });
+
+  app.delete("/api/employees/:id", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.deleteEmployee(req.params.id);
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: 'Employee not found' });
+      }
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete employee' });
+    }
+  });
+
+  // Project employee assignment routes
+  app.post("/api/projects/:id/employees", requireAuth, async (req, res) => {
+    try {
+      const { employeeId } = req.body;
+      const assignment = await storage.assignEmployeeToProject({
+        projectId: req.params.id,
+        employeeId,
+      });
+      res.status(201).json(assignment);
+    } catch (error) {
+      res.status(400).json({ message: 'Failed to assign employee' });
+    }
+  });
+
+  app.delete("/api/projects/:id/employees/:employeeId", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.removeEmployeeFromProject(req.params.id, req.params.employeeId);
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: 'Assignment not found' });
+      }
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to remove employee assignment' });
     }
   });
 

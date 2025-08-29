@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Globe, Smartphone, Monitor, DollarSign, Calendar, FileText, Plus, Download, Trash2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Globe, Smartphone, Monitor, DollarSign, Calendar, FileText, Plus, Download, Trash2, Eye, EyeOff, Users, User } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -90,9 +90,9 @@ export default function ProjectDetails() {
   };
 
   const formatCurrency = (amount: string | number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(parseFloat(String(amount)));
   };
 
@@ -207,6 +207,30 @@ export default function ProjectDetails() {
                       <span className="text-muted-foreground">Source:</span>
                       <span data-testid="text-client-source">{project.clientSource || 'N/A'}</span>
                     </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Assigned Team ({project.assignedEmployees?.length || 0})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {project.assignedEmployees && project.assignedEmployees.length > 0 ? (
+                      <div className="space-y-2">
+                        {project.assignedEmployees.map((employee) => (
+                          <div key={employee.id} className="flex items-center gap-2 text-sm">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span data-testid={`text-employee-${employee.id}`}>{employee.name}</span>
+                            <span className="text-muted-foreground">({employee.employeeCode})</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground" data-testid="text-no-employees">No employees assigned to this project</p>
+                    )}
                   </CardContent>
                 </Card>
               </div>

@@ -58,6 +58,21 @@ export const projectFiles = pgTable("project_files", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
+export const employees = pgTable("employees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  employeeCode: text("employee_code").notNull().unique(),
+  designation: text("designation").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const projectEmployees = pgTable("project_employees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+});
+
 // Relations
 export const clientsRelations = relations(clients, ({ many }) => ({
   projects: many(projects),
@@ -70,6 +85,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   }),
   extensions: many(projectExtensions),
   files: many(projectFiles),
+  projectEmployees: many(projectEmployees),
 }));
 
 export const projectExtensionsRelations = relations(projectExtensions, ({ one }) => ({
@@ -83,6 +99,21 @@ export const projectFilesRelations = relations(projectFiles, ({ one }) => ({
   project: one(projects, {
     fields: [projectFiles.projectId],
     references: [projects.id],
+  }),
+}));
+
+export const employeesRelations = relations(employees, ({ many }) => ({
+  projectEmployees: many(projectEmployees),
+}));
+
+export const projectEmployeesRelations = relations(projectEmployees, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectEmployees.projectId],
+    references: [projects.id],
+  }),
+  employee: one(employees, {
+    fields: [projectEmployees.employeeId],
+    references: [employees.id],
   }),
 }));
 
@@ -122,6 +153,16 @@ export const insertProjectFileSchema = createInsertSchema(projectFiles).omit({
   uploadedAt: true,
 });
 
+export const insertEmployeeSchema = createInsertSchema(employees).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertProjectEmployeeSchema = createInsertSchema(projectEmployees).omit({
+  id: true,
+  assignedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -138,10 +179,17 @@ export type InsertProjectExtension = z.infer<typeof insertProjectExtensionSchema
 export type ProjectFile = typeof projectFiles.$inferSelect;
 export type InsertProjectFile = z.infer<typeof insertProjectFileSchema>;
 
+export type Employee = typeof employees.$inferSelect;
+export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+
+export type ProjectEmployee = typeof projectEmployees.$inferSelect;
+export type InsertProjectEmployee = z.infer<typeof insertProjectEmployeeSchema>;
+
 // Extended types for API responses
 export type ProjectWithDetails = Project & {
   client: Client;
   extensions: ProjectExtension[];
   files: ProjectFile[];
+  assignedEmployees: Employee[];
   totalCost: string; // Calculated field: budget + sum of extension budgets
 };

@@ -1,4 +1,4 @@
-import { users, clients, projects, projectExtensions, projectFiles, type User, type InsertUser, type Client, type InsertClient, type Project, type InsertProject, type ProjectExtension, type InsertProjectExtension, type ProjectFile, type InsertProjectFile, type ProjectWithDetails } from "@shared/schema";
+import { users, clients, projects, projectExtensions, projectFiles, employees, projectEmployees, type User, type InsertUser, type Client, type InsertClient, type Project, type InsertProject, type ProjectExtension, type InsertProjectExtension, type ProjectFile, type InsertProjectFile, type Employee, type InsertEmployee, type ProjectEmployee, type InsertProjectEmployee, type ProjectWithDetails } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count } from "drizzle-orm";
 
@@ -31,12 +31,25 @@ export interface IStorage {
   createProjectFile(file: InsertProjectFile): Promise<ProjectFile>;
   deleteProjectFile(id: string): Promise<boolean>;
 
+  // Employees
+  getAllEmployees(): Promise<Employee[]>;
+  getEmployee(id: string): Promise<Employee | undefined>;
+  createEmployee(employee: InsertEmployee): Promise<Employee>;
+  updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
+  deleteEmployee(id: string): Promise<boolean>;
+
+  // Project Employee Assignments
+  getProjectEmployees(projectId: string): Promise<Employee[]>;
+  assignEmployeeToProject(assignment: InsertProjectEmployee): Promise<ProjectEmployee>;
+  removeEmployeeFromProject(projectId: string, employeeId: string): Promise<boolean>;
+
   // Statistics
   getProjectStats(): Promise<{
     totalProjects: number;
     completedProjects: number;
     inProgressProjects: number;
     totalClients: number;
+    totalEmployees: number;
   }>;
 }
 
@@ -81,7 +94,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteClient(id: string): Promise<boolean> {
     const result = await db.delete(clients).where(eq(clients.id, id));
-    return (result.rowCount || 0) > 0;
+    return result.length > 0;
   }
 
   async getAllProjects(): Promise<ProjectWithDetails[]> {
@@ -96,6 +109,7 @@ export class DatabaseStorage implements IStorage {
     for (const row of projectsWithDetails) {
       const extensions = await this.getProjectExtensions(row.projects.id);
       const files = await this.getProjectFiles(row.projects.id);
+      const assignedEmployees = await this.getProjectEmployees(row.projects.id);
       
       // Calculate total cost
       const baseBudget = parseFloat(row.projects.budget || '0');
@@ -109,6 +123,7 @@ export class DatabaseStorage implements IStorage {
         client: row.clients!,
         extensions,
         files,
+        assignedEmployees,
         totalCost,
       });
     }
@@ -127,6 +142,7 @@ export class DatabaseStorage implements IStorage {
 
     const extensions = await this.getProjectExtensions(id);
     const files = await this.getProjectFiles(id);
+    const assignedEmployees = await this.getProjectEmployees(id);
 
     // Calculate total cost
     const baseBudget = parseFloat(result.projects.budget || '0');
@@ -140,6 +156,7 @@ export class DatabaseStorage implements IStorage {
       client: result.clients!,
       extensions,
       files,
+      assignedEmployees,
       totalCost,
     };
   }
@@ -163,7 +180,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProject(id: string): Promise<boolean> {
     const result = await db.delete(projects).where(eq(projects.id, id));
-    return (result.rowCount || 0) > 0;
+    return result.length > 0;
   }
 
   async getProjectExtensions(projectId: string): Promise<ProjectExtension[]> {
@@ -194,7 +211,60 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProjectFile(id: string): Promise<boolean> {
     const result = await db.delete(projectFiles).where(eq(projectFiles.id, id));
-    return (result.rowCount || 0) > 0;
+    return result.length > 0;
+  }
+
+  async getAllEmployees(): Promise<Employee[]> {
+    return await db.select().from(employees).orderBy(employees.name);
+  }
+
+  async getEmployee(id: string): Promise<Employee | undefined> {
+    const [employee] = await db.select().from(employees).where(eq(employees.id, id));
+    return employee || undefined;
+  }
+
+  async createEmployee(employee: InsertEmployee): Promise<Employee> {
+    const [newEmployee] = await db.insert(employees).values(employee).returning();
+    return newEmployee;
+  }
+
+  async updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined> {
+    const [updated] = await db
+      .update(employees)
+      .set(employee)
+      .where(eq(employees.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteEmployee(id: string): Promise<boolean> {
+    const result = await db.delete(employees).where(eq(employees.id, id));
+    return result.length > 0;
+  }
+
+  async getProjectEmployees(projectId: string): Promise<Employee[]> {
+    const result = await db
+      .select()
+      .from(projectEmployees)
+      .leftJoin(employees, eq(projectEmployees.employeeId, employees.id))
+      .where(eq(projectEmployees.projectId, projectId))
+      .orderBy(employees.name);
+
+    return result.map(row => row.employees!);
+  }
+
+  async assignEmployeeToProject(assignment: InsertProjectEmployee): Promise<ProjectEmployee> {
+    const [newAssignment] = await db.insert(projectEmployees).values(assignment).returning();
+    return newAssignment;
+  }
+
+  async removeEmployeeFromProject(projectId: string, employeeId: string): Promise<boolean> {
+    const result = await db.delete(projectEmployees)
+      .where(and(
+        eq(projectEmployees.projectId, projectId),
+        eq(projectEmployees.employeeId, employeeId)
+      ));
+    return result.length > 0;
   }
 
   async getProjectStats(): Promise<{
@@ -202,6 +272,7 @@ export class DatabaseStorage implements IStorage {
     completedProjects: number;
     inProgressProjects: number;
     totalClients: number;
+    totalEmployees: number;
   }> {
     const [totalProjectsResult] = await db.select({ count: count() }).from(projects);
     const [completedProjectsResult] = await db
@@ -213,12 +284,14 @@ export class DatabaseStorage implements IStorage {
       .from(projects)
       .where(eq(projects.status, 'in-progress'));
     const [totalClientsResult] = await db.select({ count: count() }).from(clients);
+    const [totalEmployeesResult] = await db.select({ count: count() }).from(employees);
 
     return {
       totalProjects: totalProjectsResult.count,
       completedProjects: completedProjectsResult.count,
       inProgressProjects: inProgressProjectsResult.count,
       totalClients: totalClientsResult.count,
+      totalEmployees: totalEmployeesResult.count,
     };
   }
 }
