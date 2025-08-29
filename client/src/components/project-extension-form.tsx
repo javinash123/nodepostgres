@@ -26,7 +26,6 @@ export function ProjectExtensionForm({ projectId, onClose, onSuccess }: ProjectE
     defaultValues: {
       newEndDate: undefined,
       extendedBudget: undefined,
-      actualCompletionDate: undefined,
       notes: "",
     },
   });
@@ -55,7 +54,6 @@ export function ProjectExtensionForm({ projectId, onClose, onSuccess }: ProjectE
     const formattedData = {
       ...data,
       newEndDate: data.newEndDate || undefined,
-      actualCompletionDate: data.actualCompletionDate || undefined,
       extendedBudget: data.extendedBudget || undefined,
     };
     
@@ -116,24 +114,6 @@ export function ProjectExtensionForm({ projectId, onClose, onSuccess }: ProjectE
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="actualCompletionDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Actual Completion Date</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        {...field}
-                        value={field.value || ""}
-                        data-testid="input-actual-completion-date"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <FormField
                 control={form.control}

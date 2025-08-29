@@ -63,6 +63,7 @@ export const employees = pgTable("employees", {
   name: text("name").notNull(),
   employeeCode: text("employee_code").notNull().unique(),
   designation: text("designation").notNull(),
+  salary: decimal("salary", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -156,6 +157,8 @@ export const insertProjectFileSchema = createInsertSchema(projectFiles).omit({
 export const insertEmployeeSchema = createInsertSchema(employees).omit({
   id: true,
   createdAt: true,
+}).extend({
+  salary: z.string().or(z.number()).optional().transform(val => val ? String(val) : undefined),
 });
 
 export const insertProjectEmployeeSchema = createInsertSchema(projectEmployees).omit({

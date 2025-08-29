@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Edit2, Plus, Trash2, User, Code, Briefcase, Search } from "lucide-react";
+import { Edit2, Plus, Trash2, User, Code, Briefcase, Search, Grid3X3, List } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,7 @@ export default function Employees() {
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -123,6 +124,26 @@ export default function Employees() {
                       data-testid="input-search-employees"
                     />
                   </div>
+                  <div className="flex border border-border rounded-md">
+                    <Button
+                      variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('grid')}
+                      className="rounded-r-none"
+                      data-testid="button-grid-view"
+                    >
+                      <Grid3X3 size={16} />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                      className="rounded-l-none"
+                      data-testid="button-list-view"
+                    >
+                      <List size={16} />
+                    </Button>
+                  </div>
                   <Button
                     onClick={handleAdd}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -140,79 +161,148 @@ export default function Employees() {
                   No employees found. Add your first employee to get started.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+                <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6" : "space-y-4 p-6"}>
                   {employees?.map((employee) => (
-                    <Card key={employee.id} className="p-4 hover:shadow-md transition-shadow" data-testid={`employee-card-${employee.id}`}>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                            <User className="h-5 w-5 text-primary" />
+                    viewMode === 'grid' ? (
+                      <Card key={employee.id} className="p-4 hover:shadow-md transition-shadow" data-testid={`employee-card-${employee.id}`}>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                              <User className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-card-foreground" data-testid={`employee-name-${employee.id}`}>{employee.name}</h3>
+                              <Badge variant="secondary" className="text-xs">
+                                {employee.designation}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-card-foreground" data-testid={`employee-name-${employee.id}`}>{employee.name}</h3>
-                            <Badge variant="secondary" className="text-xs">
-                              {employee.designation}
-                            </Badge>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Code className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Code:</span>
+                              <span className="font-medium" data-testid={`employee-code-${employee.id}`}>{employee.employeeCode}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Briefcase className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Role:</span>
+                              <span data-testid={`employee-designation-${employee.id}`}>{employee.designation}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2 pt-2 border-t">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(employee)}
+                              className="flex-1"
+                              data-testid={`button-edit-${employee.id}`}
+                            >
+                              <Edit2 className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive/80"
+                                  data-testid={`button-delete-${employee.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{employee.name}"? This will also remove them from all assigned projects.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteEmployeeMutation.mutate(employee.id)}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                    disabled={deleteEmployeeMutation.isPending}
+                                  >
+                                    {deleteEmployeeMutation.isPending ? "Deleting..." : "Delete"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </div>
-                        
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Code className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Code:</span>
-                            <span className="font-medium" data-testid={`employee-code-${employee.id}`}>{employee.employeeCode}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Briefcase className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Role:</span>
-                            <span data-testid={`employee-designation-${employee.id}`}>{employee.designation}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex gap-2 pt-2 border-t">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(employee)}
-                            className="flex-1"
-                            data-testid={`button-edit-${employee.id}`}
-                          >
-                            <Edit2 className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                      </Card>
+                    ) : (
+                      <Card key={employee.id} className="border-border" data-testid={`employee-row-${employee.id}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4 flex-1">
+                              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                                <User className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-card-foreground" data-testid={`employee-name-${employee.id}`}>{employee.name}</h3>
+                                <p className="text-sm text-muted-foreground flex items-center mt-1">
+                                  <Code className="mr-1" size={14} />
+                                  {employee.employeeCode}
+                                </p>
+                              </div>
+                              
+                              <div className="flex-1">
+                                <Badge variant="secondary" className="text-xs">
+                                  {employee.designation}
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="flex space-x-2 ml-4">
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive/80"
-                                data-testid={`button-delete-${employee.id}`}
+                                size="icon"
+                                onClick={() => handleEdit(employee)}
+                                className="text-primary hover:text-primary/80"
+                                data-testid={`button-edit-${employee.id}`}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Edit2 size={16} />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{employee.name}"? This will also remove them from all assigned projects.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteEmployeeMutation.mutate(employee.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                  disabled={deleteEmployeeMutation.isPending}
-                                >
-                                  {deleteEmployeeMutation.isPending ? "Deleting..." : "Delete"}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    </Card>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive/80"
+                                    data-testid={`button-delete-${employee.id}`}
+                                  >
+                                    <Trash2 size={16} />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "{employee.name}"? This will also remove them from all assigned projects.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteEmployeeMutation.mutate(employee.id)}
+                                      className="bg-destructive hover:bg-destructive/90"
+                                      disabled={deleteEmployeeMutation.isPending}
+                                    >
+                                      {deleteEmployeeMutation.isPending ? "Deleting..." : "Delete"}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
                   ))}
                 </div>
               )}

@@ -7,10 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Globe, Smartphone, Monitor, DollarSign, Calendar, FileText, Plus, Download, Trash2, Eye, EyeOff, Users, User } from "lucide-react";
+import { ArrowLeft, Globe, Smartphone, Monitor, DollarSign, Calendar, FileText, Plus, Download, Trash2, Eye, EyeOff, Users, User, Edit2, Save, X, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails } from "@shared/schema";
 import { ProjectExtensionForm } from "@/components/project-extension-form";
 import { FileUploadForm } from "@/components/file-upload-form";
@@ -21,12 +23,23 @@ export default function ProjectDetails() {
   const [showCredentials, setShowCredentials] = useState(false);
   const [showExtensionForm, setShowExtensionForm] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
+  const [editingCredentials, setEditingCredentials] = useState(false);
+  const [credentialsText, setCredentialsText] = useState("");
+  const [previewFile, setPreviewFile] = useState<any>(null);
+
   const queryClient = useQueryClient();
 
   const { data: project, isLoading } = useQuery<ProjectWithDetails>({
     queryKey: ['/api/projects', params?.id],
     enabled: !!params?.id,
   });
+
+  // Update credentials text when project data loads
+  useEffect(() => {
+    if (project?.credentials) {
+      setCredentialsText(project.credentials);
+    }
+  }, [project?.credentials]);
 
   const deleteFileMutation = useMutation({
     mutationFn: async (fileId: string) => {
@@ -42,6 +55,56 @@ export default function ProjectDetails() {
       toast({ title: "Failed to delete file", variant: "destructive" });
     },
   });
+
+  const updateCredentialsMutation = useMutation({
+    mutationFn: async (credentials: string) => {
+      const response = await apiRequest('PUT', `/api/projects/${params?.id}`, { credentials });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', params?.id] });
+      setEditingCredentials(false);
+      toast({ title: "Credentials updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update credentials", variant: "destructive" });
+    },
+  });
+
+  const handleSaveCredentials = () => {
+    updateCredentialsMutation.mutate(credentialsText);
+  };
+
+  const handleCancelEdit = () => {
+    setCredentialsText(project?.credentials || "");
+    setEditingCredentials(false);
+  };
+
+  const getFilePreviewUrl = (file: any) => {
+    return `/uploads/${file.filePath.split('/').pop()}`;
+  };
+
+  const isImageFile = (fileName: string) => {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+    return imageExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
+  };
+
+  const isPdfFile = (fileName: string) => {
+    return fileName.toLowerCase().endsWith('.pdf');
+  };
+
+  const isTextFile = (fileName: string) => {
+    const textExtensions = ['.txt', '.md', '.json', '.xml', '.csv', '.log'];
+    return textExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
+  };
+
+  const handlePreviewFile = (file: any) => {
+    setPreviewFile(file);
+  };
+
+  const closePreview = () => {
+    setPreviewFile(null);
+  };
 
   if (isLoading) {
     return (
@@ -284,25 +347,84 @@ export default function ProjectDetails() {
                       <FileText className="h-4 w-4" />
                       Project Credentials
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowCredentials(!showCredentials)}
-                      data-testid="button-toggle-credentials"
-                    >
-                      {showCredentials ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {!editingCredentials && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingCredentials(true)}
+                            data-testid="button-edit-credentials"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowCredentials(!showCredentials)}
+                            data-testid="button-toggle-credentials"
+                          >
+                            {showCredentials ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </>
+                      )}
+                      {editingCredentials && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSaveCredentials}
+                            disabled={updateCredentialsMutation.isPending}
+                            data-testid="button-save-credentials"
+                          >
+                            <Save className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCancelEdit}
+                            data-testid="button-cancel-credentials"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {project.credentials ? (
+                  {editingCredentials ? (
+                    <div className="space-y-4">
+                      <Textarea
+                        value={credentialsText}
+                        onChange={(e) => setCredentialsText(e.target.value)}
+                        placeholder="Enter project credentials (encrypted storage)"
+                        rows={8}
+                        className="font-mono text-sm"
+                        data-testid="textarea-edit-credentials"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Store login credentials, API keys, server details, etc. This field is encrypted and secure.
+                      </p>
+                    </div>
+                  ) : project.credentials ? (
                     <div className="p-4 bg-muted rounded-lg">
                       <pre className="whitespace-pre-wrap text-sm font-mono" data-testid="text-credentials">
                         {showCredentials ? project.credentials : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
                       </pre>
                     </div>
                   ) : (
-                    <p className="text-muted-foreground">No credentials stored for this project.</p>
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground mb-4">No credentials stored for this project.</p>
+                      <Button
+                        variant="outline"
+                        onClick={() => setEditingCredentials(true)}
+                        data-testid="button-add-credentials"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Credentials
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -337,6 +459,16 @@ export default function ProjectDetails() {
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
+                            {(isImageFile(file.fileName) || isPdfFile(file.fileName) || isTextFile(file.fileName)) && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handlePreviewFile(file)}
+                                data-testid={`button-preview-${file.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="sm" asChild>
                               <a href={`/uploads/${file.filePath.split('/').pop()}`} download data-testid={`button-download-${file.id}`}>
                                 <Download className="h-4 w-4" />
@@ -441,6 +573,54 @@ export default function ProjectDetails() {
                 queryClient.invalidateQueries({ queryKey: ['/api/projects', project.id] });
               }}
             />
+          )}
+
+          {previewFile && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={closePreview}>
+              <div className="bg-background rounded-lg max-w-4xl max-h-[90vh] w-full flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="text-lg font-semibold">{previewFile.fileName}</h3>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" asChild>
+                      <a href={getFilePreviewUrl(previewFile)} target="_blank" rel="noopener noreferrer" data-testid="button-open-external">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={closePreview} data-testid="button-close-preview">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex-1 p-4 overflow-auto">
+                  {isImageFile(previewFile.fileName) && (
+                    <img 
+                      src={getFilePreviewUrl(previewFile)} 
+                      alt={previewFile.fileName}
+                      className="max-w-full h-auto mx-auto"
+                      data-testid="preview-image"
+                    />
+                  )}
+                  {isPdfFile(previewFile.fileName) && (
+                    <iframe
+                      src={getFilePreviewUrl(previewFile)}
+                      className="w-full h-[600px] border rounded"
+                      title={previewFile.fileName}
+                      data-testid="preview-pdf"
+                    />
+                  )}
+                  {isTextFile(previewFile.fileName) && (
+                    <div className="bg-muted p-4 rounded-lg">
+                      <iframe
+                        src={getFilePreviewUrl(previewFile)}
+                        className="w-full h-[400px] border-0"
+                        title={previewFile.fileName}
+                        data-testid="preview-text"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </main>

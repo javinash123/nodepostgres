@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Mail, Phone, Building, Search } from "lucide-react";
+import { Edit2, Plus, Trash2, Mail, Phone, Building, Search, Grid3X3, List } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,6 +42,7 @@ export default function Clients() {
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -191,6 +192,26 @@ export default function Clients() {
                       data-testid="input-search-clients"
                     />
                   </div>
+                  <div className="flex border border-border rounded-md">
+                    <Button
+                      variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('grid')}
+                      className="rounded-r-none"
+                      data-testid="button-grid-view"
+                    >
+                      <Grid3X3 size={16} />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                      className="rounded-l-none"
+                      data-testid="button-list-view"
+                    >
+                      <List size={16} />
+                    </Button>
+                  </div>
                   <Button
                     onClick={handleAdd}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -215,87 +236,174 @@ export default function Clients() {
                   No clients found. Add your first client to get started.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
                   {clients?.map((client) => (
-                    <Card key={client.id} className="border-border" data-testid={`client-card-${client.id}`}>
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="font-semibold text-card-foreground text-lg" data-testid={`client-name-${client.id}`}>
-                              {client.name}
-                            </h3>
-                            {client.company && (
-                              <p className="text-sm text-muted-foreground flex items-center mt-1">
-                                <Building className="mr-1" size={14} />
-                                {client.company}
+                    viewMode === 'grid' ? (
+                      <Card key={client.id} className="border-border" data-testid={`client-card-${client.id}`}>
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h3 className="font-semibold text-card-foreground text-lg" data-testid={`client-name-${client.id}`}>
+                                {client.name}
+                              </h3>
+                              {client.company && (
+                                <p className="text-sm text-muted-foreground flex items-center mt-1">
+                                  <Building className="mr-1" size={14} />
+                                  {client.company}
+                                </p>
+                              )}
+                            </div>
+                            {client.source && (
+                              <Badge variant="secondary" className="text-xs">
+                                {client.source}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {client.email && (
+                              <p className="text-sm text-muted-foreground flex items-center">
+                                <Mail className="mr-2" size={14} />
+                                {client.email}
+                              </p>
+                            )}
+                            {client.phone && (
+                              <p className="text-sm text-muted-foreground flex items-center">
+                                <Phone className="mr-2" size={14} />
+                                {client.phone}
                               </p>
                             )}
                           </div>
-                          {client.source && (
-                            <Badge variant="secondary" className="text-xs">
-                              {client.source}
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {client.email && (
-                            <p className="text-sm text-muted-foreground flex items-center">
-                              <Mail className="mr-2" size={14} />
-                              {client.email}
-                            </p>
-                          )}
-                          {client.phone && (
-                            <p className="text-sm text-muted-foreground flex items-center">
-                              <Phone className="mr-2" size={14} />
-                              {client.phone}
-                            </p>
-                          )}
-                        </div>
-                        
-                        <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-border">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(client)}
-                            className="text-primary hover:text-primary/80"
-                            data-testid={`button-edit-client-${client.id}`}
-                          >
-                            <Edit2 size={16} />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                          
+                          <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-border">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(client)}
+                              className="text-primary hover:text-primary/80"
+                              data-testid={`button-edit-client-${client.id}`}
+                            >
+                              <Edit2 size={16} />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive/80"
+                                  data-testid={`button-delete-client-${client.id}`}
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Client</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{client.name}"? This will also delete all associated projects. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteClientMutation.mutate(client.id)}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                    disabled={deleteClientMutation.isPending}
+                                  >
+                                    {deleteClientMutation.isPending ? "Deleting..." : "Delete"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card key={client.id} className="border-border" data-testid={`client-row-${client.id}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4 flex-1">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-card-foreground" data-testid={`client-name-${client.id}`}>
+                                  {client.name}
+                                </h3>
+                                {client.company && (
+                                  <p className="text-sm text-muted-foreground flex items-center mt-1">
+                                    <Building className="mr-1" size={14} />
+                                    {client.company}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div className="flex-1">
+                                {client.email && (
+                                  <p className="text-sm text-muted-foreground flex items-center">
+                                    <Mail className="mr-2" size={14} />
+                                    {client.email}
+                                  </p>
+                                )}
+                                {client.phone && (
+                                  <p className="text-sm text-muted-foreground flex items-center">
+                                    <Phone className="mr-2" size={14} />
+                                    {client.phone}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div className="flex-shrink-0">
+                                {client.source && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {client.source}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex space-x-2 ml-4">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-destructive hover:text-destructive/80"
-                                data-testid={`button-delete-client-${client.id}`}
+                                onClick={() => handleEdit(client)}
+                                className="text-primary hover:text-primary/80"
+                                data-testid={`button-edit-client-${client.id}`}
                               >
-                                <Trash2 size={16} />
+                                <Edit2 size={16} />
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Client</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{client.name}"? This will also delete all associated projects. This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteClientMutation.mutate(client.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                  disabled={deleteClientMutation.isPending}
-                                >
-                                  {deleteClientMutation.isPending ? "Deleting..." : "Delete"}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </CardContent>
-                    </Card>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive/80"
+                                    data-testid={`button-delete-client-${client.id}`}
+                                  >
+                                    <Trash2 size={16} />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Client</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "{client.name}"? This will also delete all associated projects. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteClientMutation.mutate(client.id)}
+                                      className="bg-destructive hover:bg-destructive/90"
+                                      disabled={deleteClientMutation.isPending}
+                                    >
+                                      {deleteClientMutation.isPending ? "Deleting..." : "Delete"}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
                   ))}
                 </div>
               )}

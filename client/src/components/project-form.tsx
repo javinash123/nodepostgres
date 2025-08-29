@@ -13,7 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ProjectWithDetails, Client, Employee } from "@shared/schema";
-import { CloudUpload, X, Lock, UserCheck } from "lucide-react";
+import { Lock, UserCheck } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const projectFormSchema = z.object({
@@ -41,7 +41,6 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -128,21 +127,6 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
       return { response, newProject };
     },
     onSuccess: async ({ newProject }) => {
-      // Upload files if any
-      if (selectedFiles.length > 0) {
-        const formData = new FormData();
-        selectedFiles.forEach(file => formData.append('files', file));
-        
-        try {
-          await apiRequest('POST', `/api/projects/${newProject.id}/files`, formData);
-        } catch (error) {
-          toast({
-            variant: "destructive",
-            title: "File upload failed",
-            description: "Project created but files could not be uploaded.",
-          });
-        }
-      }
       
       queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
@@ -151,7 +135,6 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
         description: "The project has been successfully created.",
       });
       onOpenChange(false);
-      setSelectedFiles([]);
     },
     onError: () => {
       toast({
@@ -209,15 +192,6 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files));
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setSelectedFiles(files => files.filter((_, i) => i !== index));
-  };
 
   const isLoading = createProjectMutation.isPending || updateProjectMutation.isPending;
 
@@ -453,48 +427,6 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
             </Card>
           </div>
           
-          {!project && (
-            <div>
-              <Label>Project Files</Label>
-              <div 
-                className="border-2 border-dashed border-input rounded-lg p-6 text-center hover:border-ring transition-colors cursor-pointer"
-                onClick={() => document.getElementById('file-input')?.click()}
-              >
-                <CloudUpload className="mx-auto text-3xl text-muted-foreground mb-4" size={48} />
-                <p className="text-sm text-card-foreground mb-2">Drag and drop files here, or click to browse</p>
-                <p className="text-xs text-muted-foreground">Support for documents, images, archives (max 10MB each)</p>
-                <input
-                  id="file-input"
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleFileChange}
-                  data-testid="input-files"
-                />
-              </div>
-              
-              {selectedFiles.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-card-foreground mb-2">Selected Files:</h4>
-                  <div className="space-y-2">
-                    {selectedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
-                        <span className="text-sm text-card-foreground">{file.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(index)}
-                        >
-                          <X size={16} />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           
           <div className="flex justify-end space-x-4 pt-6 border-t border-border">
             <Button 

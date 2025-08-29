@@ -15,6 +15,7 @@ const employeeFormSchema = z.object({
   name: z.string().min(1, "Employee name is required"),
   employeeCode: z.string().min(1, "Employee code is required"),
   designation: z.string().min(1, "Designation is required"),
+  salary: z.string().optional(),
 });
 
 type EmployeeFormData = z.infer<typeof employeeFormSchema>;
@@ -35,6 +36,7 @@ export function EmployeeForm({ employee, open, onOpenChange }: EmployeeFormProps
       name: "",
       employeeCode: "",
       designation: "",
+      salary: "",
     },
   });
 
@@ -44,12 +46,14 @@ export function EmployeeForm({ employee, open, onOpenChange }: EmployeeFormProps
         name: employee.name,
         employeeCode: employee.employeeCode,
         designation: employee.designation,
+        salary: employee.salary?.toString() || "",
       });
     } else {
       form.reset({
         name: "",
         employeeCode: "",
         designation: "",
+        salary: "",
       });
     }
   }, [employee, form]);
@@ -153,6 +157,17 @@ export function EmployeeForm({ employee, open, onOpenChange }: EmployeeFormProps
             {form.formState.errors.designation && (
               <p className="text-sm text-destructive mt-1">{form.formState.errors.designation.message}</p>
             )}
+          </div>
+          
+          <div>
+            <Label htmlFor="salary">Monthly Salary (₹)</Label>
+            <Input
+              id="salary"
+              type="number"
+              {...form.register("salary")}
+              placeholder="E.g., 50000"
+              data-testid="input-employee-salary"
+            />
           </div>
           
           <div className="flex justify-end space-x-3 pt-6 border-t border-border">

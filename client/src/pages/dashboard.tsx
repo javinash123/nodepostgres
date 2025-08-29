@@ -4,6 +4,9 @@ import { Sidebar } from "@/components/sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 import { StatsCards } from "@/components/stats-cards";
 import { ProjectTable } from "@/components/project-table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { TrendingUp, BarChart3 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "lucide-react";
@@ -50,6 +53,43 @@ export default function Dashboard() {
     );
   }, [projects, selectedFinancialYear]);
 
+  // Generate month-on-month sales data
+  const salesData = useMemo(() => {
+    if (!filteredProjects?.length) return [];
+
+    const monthlyData = new Map<string, { month: string, sales: number, projectCount: number }>();
+    const now = new Date();
+    
+    // Generate last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = date.toISOString().slice(0, 7); // YYYY-MM format
+      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      
+      monthlyData.set(monthKey, {
+        month: monthName,
+        sales: 0,
+        projectCount: 0
+      });
+    }
+
+    // Aggregate sales by month based on project completion or start date
+    filteredProjects.forEach(project => {
+      // Use completion date if available, otherwise use start date
+      const projectDate = project.completionDate ? new Date(project.completionDate) : new Date(project.startDate);
+      const monthKey = projectDate.toISOString().slice(0, 7);
+      
+      if (monthlyData.has(monthKey)) {
+        const data = monthlyData.get(monthKey)!;
+        data.sales += parseFloat(project.budget);
+        data.projectCount += 1;
+        monthlyData.set(monthKey, data);
+      }
+    });
+
+    return Array.from(monthlyData.values());
+  }, [filteredProjects]);
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -92,6 +132,67 @@ export default function Dashboard() {
           </div>
           
           <StatsCards selectedFinancialYear={selectedFinancialYear} />
+          
+          {/* Sales Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Month-on-Month Sales
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={salesData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis 
+                      tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [
+                        `₹${value.toLocaleString('en-IN')}`, 
+                        'Sales'
+                      ]}
+                      labelFormatter={(label) => `Month: ${label}`}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="sales" 
+                      stroke="#8884d8" 
+                      strokeWidth={2}
+                      dot={{ fill: '#8884d8' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Projects Completed by Month
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={salesData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: number) => [value, 'Projects']}
+                      labelFormatter={(label) => `Month: ${label}`}
+                    />
+                    <Bar dataKey="projectCount" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          
           <ProjectTable projects={filteredProjects} />
         </div>
       </main>
