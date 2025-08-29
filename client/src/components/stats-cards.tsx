@@ -1,23 +1,62 @@
+import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { FolderKanban, CheckCircle, Clock, Users } from "lucide-react";
+import { FolderKanban, CheckCircle, Clock, Users, UserCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { isDateInFinancialYear } from "@/lib/utils";
+import type { ProjectWithDetails } from "@shared/schema";
 
 interface Stats {
   totalProjects: number;
   completedProjects: number;
   inProgressProjects: number;
   totalClients: number;
+  totalEmployees: number;
 }
 
-export function StatsCards() {
-  const { data: stats, isLoading } = useQuery<Stats>({
-    queryKey: ['/api/stats'],
+interface StatsCardsProps {
+  selectedFinancialYear?: string;
+}
+
+export function StatsCards({ selectedFinancialYear = "all" }: StatsCardsProps) {
+  const { data: projects, isLoading: projectsLoading } = useQuery<ProjectWithDetails[]>({
+    queryKey: ['/api/projects'],
   });
+  
+  const { data: clients, isLoading: clientsLoading } = useQuery({
+    queryKey: ['/api/clients'],
+  });
+  
+  const { data: employees, isLoading: employeesLoading } = useQuery({
+    queryKey: ['/api/employees'],
+  });
+
+  const isLoading = projectsLoading || clientsLoading || employeesLoading;
+
+  // Calculate filtered stats based on financial year
+  const stats = useMemo(() => {
+    if (!projects || !clients || !employees) return null;
+    
+    // Filter projects by financial year if selected
+    const filteredProjects = selectedFinancialYear === "all" 
+      ? projects 
+      : projects.filter(project => 
+          isDateInFinancialYear(new Date(project.startDate), selectedFinancialYear)
+        );
+    
+    return {
+      totalProjects: filteredProjects.length,
+      completedProjects: filteredProjects.filter(p => p.status === 'completed').length,
+      inProgressProjects: filteredProjects.filter(p => p.status === 'in-progress').length,
+      totalClients: selectedFinancialYear === "all" ? clients.length : 
+        new Set(filteredProjects.map(p => p.clientId)).size,
+      totalEmployees: employees.length // Employee count doesn't change by financial year
+    };
+  }, [projects, clients, employees, selectedFinancialYear]);
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        {[...Array(5)].map((_, i) => (
           <Card key={i} className="border-border">
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -69,10 +108,18 @@ export function StatsCards() {
       iconColor: "text-purple-600 dark:text-purple-400",
       testId: "stats-total-clients"
     },
+    {
+      title: "Total Employees",
+      value: stats?.totalEmployees || 0,
+      icon: UserCheck,
+      bgColor: "bg-indigo-100 dark:bg-indigo-900/20",
+      iconColor: "text-indigo-600 dark:text-indigo-400",
+      testId: "stats-total-employees"
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
       {statsData.map((stat) => {
         const Icon = stat.icon;
         return (

@@ -85,6 +85,7 @@ export default function ProjectDetails() {
       case 'completed': return 'bg-green-500';
       case 'in-progress': return 'bg-blue-500';
       case 'on-hold': return 'bg-yellow-500';
+      case 'cancelled': return 'bg-red-500';
       default: return 'bg-gray-500';
     }
   };

@@ -107,6 +107,7 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
         status: "planning",
         clientSource: "",
         credentials: "",
+        assignedEmployees: [],
       });
     }
   }, [project, form]);
@@ -387,6 +388,7 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="on-hold">On Hold</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -424,9 +426,9 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
                       <div key={employee.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={`employee-${employee.id}`}
-                          checked={form.watch("assignedEmployees").includes(employee.id)}
+                          checked={(form.watch("assignedEmployees") || []).includes(employee.id)}
                           onCheckedChange={(checked) => {
-                            const currentEmployees = form.watch("assignedEmployees");
+                            const currentEmployees = form.watch("assignedEmployees") || [];
                             if (checked) {
                               form.setValue("assignedEmployees", [...currentEmployees, employee.id]);
                             } else {

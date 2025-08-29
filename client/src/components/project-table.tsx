@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Eye, Plus, Trash2, Kanban, List, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Edit2, Eye, Plus, Trash2, Kanban, List, Users, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -26,18 +27,40 @@ const statusColors = {
   'in-progress': 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-200',
   'completed': 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-200',
   'on-hold': 'bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-200',
+  'cancelled': 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-200',
 };
 
-export function ProjectTable() {
+interface ProjectTableProps {
+  projects?: ProjectWithDetails[];
+}
+
+export function ProjectTable({ projects: propProjects }: ProjectTableProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectWithDetails | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: projects, isLoading } = useQuery<ProjectWithDetails[]>({
+  const { data: fetchedProjects, isLoading } = useQuery<ProjectWithDetails[]>({
     queryKey: ['/api/projects'],
+    enabled: !propProjects, // Only fetch if projects not provided as prop
   });
+  
+  const allProjects = propProjects || fetchedProjects;
+  
+  // Filter projects based on search term
+  const projects = useMemo(() => {
+    if (!allProjects || !searchTerm.trim()) return allProjects;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return allProjects.filter(project => 
+      project.name.toLowerCase().includes(searchLower) ||
+      project.client?.name.toLowerCase().includes(searchLower) ||
+      project.status.toLowerCase().includes(searchLower) ||
+      project.clientSource?.toLowerCase().includes(searchLower)
+    );
+  }, [allProjects, searchTerm]);
 
   const deleteProjectMutation = useMutation({
     mutationFn: (projectId: string) => apiRequest('DELETE', `/api/projects/${projectId}`),
@@ -90,6 +113,7 @@ export function ProjectTable() {
       'in-progress': projects?.filter(p => p.status === 'in-progress') || [],
       completed: projects?.filter(p => p.status === 'completed') || [],
       'on-hold': projects?.filter(p => p.status === 'on-hold') || [],
+      cancelled: projects?.filter(p => p.status === 'cancelled') || [],
     };
 
     return (
@@ -175,10 +199,21 @@ export function ProjectTable() {
     <>
       <Card className="border-border">
         <CardHeader className="border-b border-border">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <h2 className="text-lg font-semibold text-card-foreground">Recent Projects</h2>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center border rounded-lg p-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search projects..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-projects"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center border rounded-lg p-1">
                 <Button
                   variant={viewMode === 'table' ? 'default' : 'ghost'}
                   size="sm"
@@ -195,15 +230,16 @@ export function ProjectTable() {
                 >
                   <Kanban className="h-4 w-4" />
                 </Button>
-              </div>
-              <Button
+                </div>
+                <Button
                 onClick={handleAdd}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 data-testid="button-add-project"
               >
                 <Plus className="mr-2" size={16} />
                 Add Project
-              </Button>
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>

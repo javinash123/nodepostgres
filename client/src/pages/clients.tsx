@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, Mail, Phone, Building } from "lucide-react";
+import { Edit2, Plus, Trash2, Mail, Phone, Building, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,12 +41,27 @@ type ClientFormData = z.infer<typeof clientFormSchema>;
 export default function Clients() {
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: clients, isLoading } = useQuery<Client[]>({
+  const { data: allClients, isLoading } = useQuery<Client[]>({
     queryKey: ['/api/clients'],
   });
+
+  // Filter clients based on search term
+  const clients = useMemo(() => {
+    if (!allClients || !searchTerm.trim()) return allClients;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return allClients.filter(client => 
+      client.name.toLowerCase().includes(searchLower) ||
+      client.email?.toLowerCase().includes(searchLower) ||
+      client.company?.toLowerCase().includes(searchLower) ||
+      client.phone?.toLowerCase().includes(searchLower) ||
+      client.source?.toLowerCase().includes(searchLower)
+    );
+  }, [allClients, searchTerm]);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
@@ -163,16 +178,28 @@ export default function Clients() {
           
           <Card className="border-border">
             <CardHeader className="border-b border-border">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold text-card-foreground">All Clients</h2>
-                <Button
-                  onClick={handleAdd}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  data-testid="button-add-client"
-                >
-                  <Plus className="mr-2" size={16} />
-                  Add Client
-                </Button>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Search clients..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                      data-testid="input-search-clients"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleAdd}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    data-testid="button-add-client"
+                  >
+                    <Plus className="mr-2" size={16} />
+                    Add Client
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             

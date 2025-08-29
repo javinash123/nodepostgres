@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Plus, Trash2, User, Code, Briefcase } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Edit2, Plus, Trash2, User, Code, Briefcase, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -25,12 +26,25 @@ import {
 export default function Employees() {
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: employees, isLoading } = useQuery<Employee[]>({
+  const { data: allEmployees, isLoading } = useQuery<Employee[]>({
     queryKey: ['/api/employees'],
   });
+
+  // Filter employees based on search term
+  const employees = useMemo(() => {
+    if (!allEmployees || !searchTerm.trim()) return allEmployees;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return allEmployees.filter(employee => 
+      employee.name.toLowerCase().includes(searchLower) ||
+      employee.employeeCode.toLowerCase().includes(searchLower) ||
+      employee.designation.toLowerCase().includes(searchLower)
+    );
+  }, [allEmployees, searchTerm]);
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: (employeeId: string) => apiRequest('DELETE', `/api/employees/${employeeId}`),
@@ -89,21 +103,36 @@ export default function Employees() {
         <MobileNav />
         
         <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-foreground">Employee Management</h1>
-            <Button
-              onClick={handleAdd}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              data-testid="button-add-employee"
-            >
-              <Plus className="mr-2" size={16} />
-              Add Employee
-            </Button>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-foreground mb-2">Employee Management</h1>
+            <p className="text-muted-foreground">Manage your team members and their information.</p>
           </div>
 
           <Card className="border-border">
             <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg font-semibold text-card-foreground">All Employees</CardTitle>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <CardTitle className="text-lg font-semibold text-card-foreground">All Employees</CardTitle>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Search employees..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                      data-testid="input-search-employees"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleAdd}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    data-testid="button-add-employee"
+                  >
+                    <Plus className="mr-2" size={16} />
+                    Add Employee
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {employees?.length === 0 ? (
