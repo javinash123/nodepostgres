@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProManage - IT Project Management Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                }
+            },
+            fontFamily: {
+                sans: ["Inter", "system-ui", "sans-serif"],
+            }
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: hsl(210 40% 98%);
+            --foreground: hsl(222.2 84% 4.9%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(222.2 84% 4.9%);
+            --popover: hsl(0 0% 100%);
+            --popover-foreground: hsl(222.2 84% 4.9%);
+            --primary: hsl(221.2 83.2% 53.3%);
+            --primary-foreground: hsl(210 40% 98%);
+            --secondary: hsl(210 40% 96%);
+            --secondary-foreground: hsl(222.2 84% 4.9%);
+            --muted: hsl(210 40% 96%);
+            --muted-foreground: hsl(215.4 16.3% 46.9%);
+            --accent: hsl(210 40% 96%);
+            --accent-foreground: hsl(222.2 84% 4.9%);
+            --destructive: hsl(0 84.2% 60.2%);
+            --destructive-foreground: hsl(210 40% 98%);
+            --border: hsl(214.3 31.8% 91.4%);
+            --input: hsl(214.3 31.8% 91.4%);
+            --ring: hsl(221.2 83.2% 53.3%);
+            --radius: 0.5rem;
+        }
+        
+        .dark {
+            --background: hsl(222.2 84% 4.9%);
+            --foreground: hsl(210 40% 98%);
+            --card: hsl(222.2 84% 4.9%);
+            --card-foreground: hsl(210 40% 98%);
+            --popover: hsl(222.2 84% 4.9%);
+            --popover-foreground: hsl(210 40% 98%);
+            --primary: hsl(217.2 91.2% 59.8%);
+            --primary-foreground: hsl(222.2 84% 4.9%);
+            --secondary: hsl(217.2 32.6% 17.5%);
+            --secondary-foreground: hsl(210 40% 98%);
+            --muted: hsl(217.2 32.6% 17.5%);
+            --muted-foreground: hsl(215 20.2% 65.1%);
+            --accent: hsl(217.2 32.6% 17.5%);
+            --accent-foreground: hsl(210 40% 98%);
+            --destructive: hsl(0 62.8% 30.6%);
+            --destructive-foreground: hsl(210 40% 98%);
+            --border: hsl(217.2 32.6% 17.5%);
+            --input: hsl(217.2 32.6% 17.5%);
+            --ring: hsl(224.3 76.3% 94.1%);
+        }
+        
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-background text-foreground min-h-screen">
+
+<!-- @COMPONENT: LoginPage -->
+<div id="login-page" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent">
+    <div class="max-w-md w-full mx-4">
+        <div class="bg-card rounded-lg shadow-xl p-8 border border-border">
+            <div class="text-center mb-8">
+                <div class="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-project-diagram text-primary-foreground text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-card-foreground">ProManage</h1>
+                <p class="text-muted-foreground mt-2">IT Project Management System</p>
+            </div>
+            
+            <form class="space-y-6" data-implementation="Handle admin login validation">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-card-foreground mb-2">Admin Email</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email"
+                        value="admin@promanage.com"
+                        data-mock="true"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        placeholder="Enter admin email"
+                    >
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-medium text-card-foreground mb-2">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password"
+                        data-mock="true"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        placeholder="Enter password"
+                    >
+                </div>
+                
+                <button 
+                    type="submit" 
+                    class="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 px-4 rounded-md transition-colors duration-200"
+                    data-event="click:handleLogin"
+                >
+                    Sign In
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <p class="text-xs text-muted-foreground">
+                    Secure admin access only
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- @END_COMPONENT: LoginPage -->
+
+<!-- @COMPONENT: Dashboard -->
+<div id="dashboard" class="hidden">
+    <!-- Sidebar Navigation -->
+    <div class="flex h-screen bg-background">
+        <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:bg-card lg:border-r lg:border-border">
+            <div class="flex items-center px-6 py-4 border-b border-border">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-project-diagram text-primary-foreground"></i>
+                </div>
+                <span class="text-lg font-semibold text-card-foreground">ProManage</span>
+            </div>
+            
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <a href="#" class="flex items-center px-3 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md" data-page="dashboard">
+                    <i class="fas fa-chart-line w-5 h-5 mr-3"></i>
+                    Dashboard
+                </a>
+                <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md" data-page="projects">
+                    <i class="fas fa-tasks w-5 h-5 mr-3"></i>
+                    Projects
+                </a>
+                <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md" data-page="clients">
+                    <i class="fas fa-users w-5 h-5 mr-3"></i>
+                    Clients
+                </a>
+                <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md" data-page="files">
+                    <i class="fas fa-folder w-5 h-5 mr-3"></i>
+                    Files
+                </a>
+            </nav>
+            
+            <div class="p-4 border-t border-border">
+                <button class="flex items-center w-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md" data-event="click:handleLogout">
+                    <i class="fas fa-sign-out-alt w-5 h-5 mr-3"></i>
+                    Logout
+                </button>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto">
+            <!-- Mobile Header -->
+            <header class="lg:hidden bg-card border-b border-border px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <button class="mr-3 p-2 rounded-md hover:bg-accent" data-event="click:toggleMobileMenu">
+                            <i class="fas fa-bars text-card-foreground"></i>
+                        </button>
+                        <div class="w-6 h-6 bg-primary rounded flex items-center justify-center mr-2">
+                            <i class="fas fa-project-diagram text-primary-foreground text-sm"></i>
+                        </div>
+                        <span class="font-semibold text-card-foreground">ProManage</span>
+                    </div>
+                    <button class="p-2 rounded-md hover:bg-accent" data-event="click:handleLogout">
+                        <i class="fas fa-sign-out-alt text-card-foreground"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Dashboard Content -->
+            <div class="p-6">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i class="fas fa-tasks text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-muted-foreground">Total Projects</p>
+                                <p class="text-2xl font-bold text-card-foreground" data-bind="stats.totalProjects">24</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <i class="fas fa-check-circle text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-muted-foreground">Completed</p>
+                                <p class="text-2xl font-bold text-card-foreground" data-bind="stats.completedProjects">18</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-orange-100 rounded-lg">
+                                <i class="fas fa-clock text-orange-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-muted-foreground">In Progress</p>
+                                <p class="text-2xl font-bold text-card-foreground" data-bind="stats.inProgressProjects">6</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i class="fas fa-users text-purple-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-muted-foreground">Total Clients</p>
+                                <p class="text-2xl font-bold text-card-foreground" data-bind="stats.totalClients">12</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Projects -->
+                <div class="bg-card rounded-lg border border-border">
+                    <div class="px-6 py-4 border-b border-border">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-semibold text-card-foreground">Recent Projects</h2>
+                            <button class="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors" data-event="click:showAddProject">
+                                <i class="fas fa-plus mr-2"></i>Add Project
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <!-- @MAP: recentProjects.map(project => ( -->
+                        <table class="w-full">
+                            <thead class="bg-muted">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Project</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Client</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">End Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-card divide-y divide-border">
+                                <tr data-mock="true">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-card-foreground">E-commerce Website</div>
+                                        <div class="text-sm text-muted-foreground">React & Node.js</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">TechCorp Ltd</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">Dec 15, 2024</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">$25,000</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                                        <button class="text-primary hover:text-primary/80 mr-3" data-event="click:editProject">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-muted-foreground hover:text-card-foreground" data-event="click:viewProject">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr data-mock="true">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-card-foreground">Mobile App Development</div>
+                                        <div class="text-sm text-muted-foreground">Flutter</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">StartupXYZ</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">In Progress</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">Jan 30, 2025</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">$40,000</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                                        <button class="text-primary hover:text-primary/80 mr-3" data-event="click:editProject">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-muted-foreground hover:text-card-foreground" data-event="click:viewProject">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr data-mock="true">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-card-foreground">CRM System</div>
+                                        <div class="text-sm text-muted-foreground">Laravel & Vue.js</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">BusinessCorp</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Extended</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">Feb 15, 2025</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">$35,000</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                                        <button class="text-primary hover:text-primary/80 mr-3" data-event="click:editProject">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-muted-foreground hover:text-card-foreground" data-event="click:viewProject">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <!-- @END_MAP -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+<!-- @END_COMPONENT: Dashboard -->
+
+<!-- @COMPONENT: AddProjectModal -->
+<div id="add-project-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-card rounded-lg border border-border max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-border">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-card-foreground">Add New Project</h2>
+                <button class="text-muted-foreground hover:text-card-foreground" data-event="click:closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        
+        <form class="p-6 space-y-6" data-implementation="Handle project creation with validation">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="project-name" class="block text-sm font-medium text-card-foreground mb-2">Project Name *</label>
+                    <input 
+                        type="text" 
+                        id="project-name" 
+                        name="projectName"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        placeholder="Enter project name"
+                        required
+                    >
+                </div>
+                
+                <div>
+                    <label for="client-name" class="block text-sm font-medium text-card-foreground mb-2">Client Name *</label>
+                    <select 
+                        id="client-name" 
+                        name="clientName"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        required
+                    >
+                        <option value="">Select client</option>
+                        <option value="techcorp" data-mock="true">TechCorp Ltd</option>
+                        <option value="startupxyz" data-mock="true">StartupXYZ</option>
+                        <option value="businesscorp" data-mock="true">BusinessCorp</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="website-url" class="block text-sm font-medium text-card-foreground mb-2">Website URL</label>
+                    <input 
+                        type="url" 
+                        id="website-url" 
+                        name="websiteUrl"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        placeholder="https://example.com"
+                    >
+                </div>
+                
+                <div>
+                    <label for="android-url" class="block text-sm font-medium text-card-foreground mb-2">Android App URL</label>
+                    <input 
+                        type="url" 
+                        id="android-url" 
+                        name="androidUrl"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        placeholder="Play Store URL"
+                    >
+                </div>
+                
+                <div>
+                    <label for="ios-url" class="block text-sm font-medium text-card-foreground mb-2">iOS App URL</label>
+                    <input 
+                        type="url" 
+                        id="ios-url" 
+                        name="iosUrl"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        placeholder="App Store URL"
+                    >
+                </div>
+                
+                <div>
+                    <label for="client-source" class="block text-sm font-medium text-card-foreground mb-2">Client Source</label>
+                    <select 
+                        id="client-source" 
+                        name="clientSource"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                    >
+                        <option value="">Select source</option>
+                        <option value="referral">Referral</option>
+                        <option value="website">Website</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="upwork">Upwork</option>
+                        <option value="fiverr">Fiverr</option>
+                        <option value="direct">Direct Contact</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="start-date" class="block text-sm font-medium text-card-foreground mb-2">Start Date *</label>
+                    <input 
+                        type="date" 
+                        id="start-date" 
+                        name="startDate"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        required
+                    >
+                </div>
+                
+                <div>
+                    <label for="end-date" class="block text-sm font-medium text-card-foreground mb-2">End Date *</label>
+                    <input 
+                        type="date" 
+                        id="end-date" 
+                        name="endDate"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        required
+                    >
+                </div>
+                
+                <div>
+                    <label for="budget" class="block text-sm font-medium text-card-foreground mb-2">Budget ($) *</label>
+                    <input 
+                        type="number" 
+                        id="budget" 
+                        name="budget"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        placeholder="25000"
+                        required
+                    >
+                </div>
+                
+                <div>
+                    <label for="project-status" class="block text-sm font-medium text-card-foreground mb-2">Status</label>
+                    <select 
+                        id="project-status" 
+                        name="status"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                    >
+                        <option value="planning">Planning</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="on-hold">On Hold</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div>
+                <label for="project-credentials" class="block text-sm font-medium text-card-foreground mb-2">Project Credentials</label>
+                <textarea 
+                    id="project-credentials" 
+                    name="credentials"
+                    rows="4"
+                    class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                    placeholder="Store login credentials, API keys, server details, etc. (encrypted storage)"
+                    data-implementation="Implement secure encryption for credentials storage"
+                ></textarea>
+                <p class="text-xs text-muted-foreground mt-1">
+                    <i class="fas fa-lock mr-1"></i>
+                    This field is encrypted and secure
+                </p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-card-foreground mb-2">Project Files</label>
+                <div class="border-2 border-dashed border-input rounded-lg p-6 text-center hover:border-ring transition-colors">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-muted-foreground mb-4"></i>
+                    <p class="text-sm text-card-foreground mb-2">Drag and drop files here, or click to browse</p>
+                    <p class="text-xs text-muted-foreground">Support for documents, images, archives (max 10MB each)</p>
+                    <input type="file" multiple class="hidden" data-implementation="Handle multiple file uploads with drag and drop">
+                </div>
+            </div>
+            
+            <!-- Project Extensions Section -->
+            <div class="border-t border-border pt-6">
+                <h3 class="text-lg font-medium text-card-foreground mb-4">Project Extensions (Optional)</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="new-end-date" class="block text-sm font-medium text-card-foreground mb-2">New End Date</label>
+                        <input 
+                            type="date" 
+                            id="new-end-date" 
+                            name="newEndDate"
+                            class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        >
+                    </div>
+                    
+                    <div>
+                        <label for="extended-budget" class="block text-sm font-medium text-card-foreground mb-2">Extended Budget ($)</label>
+                        <input 
+                            type="number" 
+                            id="extended-budget" 
+                            name="extendedBudget"
+                            class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                            placeholder="Additional amount"
+                        >
+                    </div>
+                    
+                    <div>
+                        <label for="actual-completion" class="block text-sm font-medium text-card-foreground mb-2">Actual Completion Date</label>
+                        <input 
+                            type="date" 
+                            id="actual-completion" 
+                            name="actualCompletionDate"
+                            class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        >
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <label for="extension-notes" class="block text-sm font-medium text-card-foreground mb-2">Extension Notes</label>
+                    <textarea 
+                        id="extension-notes" 
+                        name="extensionNotes"
+                        rows="3"
+                        class="w-full px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        placeholder="Reason for extension, additional requirements, etc."
+                    ></textarea>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-4 pt-6 border-t border-border">
+                <button 
+                    type="button" 
+                    class="px-4 py-2 text-muted-foreground hover:text-card-foreground border border-input rounded-md transition-colors"
+                    data-event="click:closeModal"
+                >
+                    Cancel
+                </button>
+                <button 
+                    type="submit" 
+                    class="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-medium transition-colors"
+                    data-event="click:saveProject"
+                >
+                    Create Project
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- @END_COMPONENT: AddProjectModal -->
+
+<!-- @COMPONENT: MobileMenu -->
+<div id="mobile-menu" class="hidden lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40">
+    <div class="fixed inset-y-0 left-0 w-64 bg-card border-r border-border">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div class="flex items-center">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-project-diagram text-primary-foreground"></i>
+                </div>
+                <span class="text-lg font-semibold text-card-foreground">ProManage</span>
+            </div>
+            <button class="text-muted-foreground hover:text-card-foreground" data-event="click:closeMobileMenu">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <nav class="px-4 py-6 space-y-2">
+            <a href="#" class="flex items-center px-3 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md" data-page="dashboard">
+                <i class="fas fa-chart-line w-5 h-5 mr-3"></i>
+                Dashboard
+            </a>
+            <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-muted-foreground rounded-md" data-page="projects">
+                <i class="fas fa-tasks w-5 h-5 mr-3"></i>
+                Projects
+            </a>
+            <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-muted-foreground rounded-md" data-page="clients">
+                <i class="fas fa-users w-5 h-5 mr-3"></i>
+                Clients
+            </a>
+            <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-muted-foreground rounded-md" data-page="files">
+                <i class="fas fa-folder w-5 h-5 mr-3"></i>
+                Files
+            </a>
+        </nav>
+    </div>
+</div>
+<!-- @END_COMPONENT: MobileMenu -->
+
+<script>
+(function() {
+    // TODO: Implement business logic, API calls, or state management
+    
+    // Mock login functionality
+    document.getElementById('login-page').querySelector('form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        // Simulate login validation
+        document.getElementById('login-page').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+    });
+    
+    // Modal functionality
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('[data-event="click:showAddProject"]')) {
+            document.getElementById('add-project-modal').classList.remove('hidden');
+        }
+        
+        if (e.target.closest('[data-event="click:closeModal"]')) {
+            document.getElementById('add-project-modal').classList.add('hidden');
+        }
+        
+        if (e.target.closest('[data-event="click:toggleMobileMenu"]')) {
+            document.getElementById('mobile-menu').classList.remove('hidden');
+        }
+        
+        if (e.target.closest('[data-event="click:closeMobileMenu"]')) {
+            document.getElementById('mobile-menu').classList.add('hidden');
+        }
+        
+        if (e.target.closest('[data-event="click:handleLogout"]')) {
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('login-page').classList.remove('hidden');
+        }
+    });
+    
+    // Close mobile menu when clicking outside
+    document.getElementById('mobile-menu').addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.add('hidden');
+        }
+    });
+    
+    // Close modal when clicking outside
+    document.getElementById('add-project-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.add('hidden');
+        }
+    });
+    
+    // File upload drag and drop simulation
+    const fileUploadArea = document.querySelector('[data-implementation="Handle multiple file uploads with drag and drop"]').parentElement;
+    
+    fileUploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('border-ring');
+    });
+    
+    fileUploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-ring');
+    });
+    
+    fileUploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-ring');
+        // TODO: Handle file upload
+        console.log('Files dropped:', e.dataTransfer.files);
+    });
+    
+    fileUploadArea.addEventListener('click', function() {
+        const fileInput = this.querySelector('input[type="file"]');
+        fileInput.click();
+    });
+})();
+</script>
+
+</body>
+</html>

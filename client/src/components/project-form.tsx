@@ -1,0 +1,441 @@
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { ProjectWithDetails, Client } from "@shared/schema";
+import { CloudUpload, X, Lock } from "lucide-react";
+
+const projectFormSchema = z.object({
+  name: z.string().min(1, "Project name is required"),
+  clientId: z.string().min(1, "Client is required"),
+  websiteUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  androidUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  iosUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
+  completionDate: z.string().optional(),
+  budget: z.string().min(1, "Budget is required"),
+  status: z.string().default("planning"),
+  clientSource: z.string().optional(),
+  credentials: z.string().optional(),
+});
+
+type ProjectFormData = z.infer<typeof projectFormSchema>;
+
+interface ProjectFormProps {
+  project?: ProjectWithDetails | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: clients } = useQuery<Client[]>({
+    queryKey: ['/api/clients'],
+  });
+
+  const form = useForm<ProjectFormData>({
+    resolver: zodResolver(projectFormSchema),
+    defaultValues: {
+      name: "",
+      clientId: "",
+      websiteUrl: "",
+      androidUrl: "",
+      iosUrl: "",
+      startDate: "",
+      endDate: "",
+      completionDate: "",
+      budget: "",
+      status: "planning",
+      clientSource: "",
+      credentials: "",
+    },
+  });
+
+  useEffect(() => {
+    if (project) {
+      const formatDate = (date: string | Date) => {
+        return new Date(date).toISOString().split('T')[0];
+      };
+
+      form.reset({
+        name: project.name,
+        clientId: project.clientId,
+        websiteUrl: project.websiteUrl || "",
+        androidUrl: project.androidUrl || "",
+        iosUrl: project.iosUrl || "",
+        startDate: formatDate(project.startDate),
+        endDate: formatDate(project.endDate),
+        completionDate: project.completionDate ? formatDate(project.completionDate) : "",
+        budget: project.budget.toString(),
+        status: project.status,
+        clientSource: project.clientSource || "",
+        credentials: project.credentials || "",
+      });
+    } else {
+      form.reset({
+        name: "",
+        clientId: "",
+        websiteUrl: "",
+        androidUrl: "",
+        iosUrl: "",
+        startDate: "",
+        endDate: "",
+        completionDate: "",
+        budget: "",
+        status: "planning",
+        clientSource: "",
+        credentials: "",
+      });
+    }
+  }, [project, form]);
+
+  const createProjectMutation = useMutation({
+    mutationFn: (data: ProjectFormData) => apiRequest('POST', '/api/projects', data),
+    onSuccess: async (response) => {
+      const newProject = await response.json();
+      
+      // Upload files if any
+      if (selectedFiles.length > 0) {
+        const formData = new FormData();
+        selectedFiles.forEach(file => formData.append('files', file));
+        
+        try {
+          await apiRequest('POST', `/api/projects/${newProject.id}/files`, formData);
+        } catch (error) {
+          toast({
+            variant: "destructive",
+            title: "File upload failed",
+            description: "Project created but files could not be uploaded.",
+          });
+        }
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+      toast({
+        title: "Project created",
+        description: "The project has been successfully created.",
+      });
+      onOpenChange(false);
+      setSelectedFiles([]);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Creation failed",
+        description: "Failed to create the project. Please try again.",
+      });
+    }
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: (data: ProjectFormData) => apiRequest('PUT', `/api/projects/${project!.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+      toast({
+        title: "Project updated",
+        description: "The project has been successfully updated.",
+      });
+      onOpenChange(false);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Failed to update the project. Please try again.",
+      });
+    }
+  });
+
+  const onSubmit = (data: ProjectFormData) => {
+    if (project) {
+      updateProjectMutation.mutate(data);
+    } else {
+      createProjectMutation.mutate(data);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files));
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(files => files.filter((_, i) => i !== index));
+  };
+
+  const isLoading = createProjectMutation.isPending || updateProjectMutation.isPending;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {project ? "Edit Project" : "Add New Project"}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" data-testid="project-form">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="name">Project Name *</Label>
+              <Input
+                id="name"
+                {...form.register("name")}
+                placeholder="Enter project name"
+                data-testid="input-project-name"
+                className={form.formState.errors.name ? "border-destructive" : ""}
+              />
+              {form.formState.errors.name && (
+                <p className="text-sm text-destructive mt-1">{form.formState.errors.name.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <Label htmlFor="clientId">Client Name *</Label>
+              <Select 
+                value={form.watch("clientId")} 
+                onValueChange={(value) => form.setValue("clientId", value)}
+              >
+                <SelectTrigger data-testid="select-client">
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients?.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.clientId && (
+                <p className="text-sm text-destructive mt-1">{form.formState.errors.clientId.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <Label htmlFor="websiteUrl">Website URL</Label>
+              <Input
+                id="websiteUrl"
+                type="url"
+                {...form.register("websiteUrl")}
+                placeholder="https://example.com"
+                data-testid="input-website-url"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="androidUrl">Android App URL</Label>
+              <Input
+                id="androidUrl"
+                type="url"
+                {...form.register("androidUrl")}
+                placeholder="Play Store URL"
+                data-testid="input-android-url"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="iosUrl">iOS App URL</Label>
+              <Input
+                id="iosUrl"
+                type="url"
+                {...form.register("iosUrl")}
+                placeholder="App Store URL"
+                data-testid="input-ios-url"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="clientSource">Client Source</Label>
+              <Select 
+                value={form.watch("clientSource") || ""} 
+                onValueChange={(value) => form.setValue("clientSource", value)}
+              >
+                <SelectTrigger data-testid="select-client-source">
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="referral">Referral</SelectItem>
+                  <SelectItem value="website">Website</SelectItem>
+                  <SelectItem value="linkedin">LinkedIn</SelectItem>
+                  <SelectItem value="upwork">Upwork</SelectItem>
+                  <SelectItem value="fiverr">Fiverr</SelectItem>
+                  <SelectItem value="direct">Direct Contact</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="startDate">Start Date *</Label>
+              <Input
+                id="startDate"
+                type="date"
+                {...form.register("startDate")}
+                data-testid="input-start-date"
+                className={form.formState.errors.startDate ? "border-destructive" : ""}
+              />
+              {form.formState.errors.startDate && (
+                <p className="text-sm text-destructive mt-1">{form.formState.errors.startDate.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <Label htmlFor="endDate">End Date *</Label>
+              <Input
+                id="endDate"
+                type="date"
+                {...form.register("endDate")}
+                data-testid="input-end-date"
+                className={form.formState.errors.endDate ? "border-destructive" : ""}
+              />
+              {form.formState.errors.endDate && (
+                <p className="text-sm text-destructive mt-1">{form.formState.errors.endDate.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <Label htmlFor="completionDate">Completion Date</Label>
+              <Input
+                id="completionDate"
+                type="date"
+                {...form.register("completionDate")}
+                data-testid="input-completion-date"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="budget">Budget ($) *</Label>
+              <Input
+                id="budget"
+                type="number"
+                {...form.register("budget")}
+                placeholder="25000"
+                data-testid="input-budget"
+                className={form.formState.errors.budget ? "border-destructive" : ""}
+              />
+              {form.formState.errors.budget && (
+                <p className="text-sm text-destructive mt-1">{form.formState.errors.budget.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select 
+                value={form.watch("status")} 
+                onValueChange={(value) => form.setValue("status", value)}
+              >
+                <SelectTrigger data-testid="select-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="on-hold">On Hold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="credentials">Project Credentials</Label>
+            <div className="relative">
+              <Textarea
+                id="credentials"
+                {...form.register("credentials")}
+                rows={4}
+                placeholder="Store login credentials, API keys, server details, etc. (encrypted storage)"
+                data-testid="textarea-credentials"
+              />
+              <div className="absolute top-2 right-2">
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center">
+              <Lock className="mr-1" size={12} />
+              This field is encrypted and secure
+            </p>
+          </div>
+          
+          {!project && (
+            <div>
+              <Label>Project Files</Label>
+              <div 
+                className="border-2 border-dashed border-input rounded-lg p-6 text-center hover:border-ring transition-colors cursor-pointer"
+                onClick={() => document.getElementById('file-input')?.click()}
+              >
+                <CloudUpload className="mx-auto text-3xl text-muted-foreground mb-4" size={48} />
+                <p className="text-sm text-card-foreground mb-2">Drag and drop files here, or click to browse</p>
+                <p className="text-xs text-muted-foreground">Support for documents, images, archives (max 10MB each)</p>
+                <input
+                  id="file-input"
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                  data-testid="input-files"
+                />
+              </div>
+              
+              {selectedFiles.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-card-foreground mb-2">Selected Files:</h4>
+                  <div className="space-y-2">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
+                        <span className="text-sm text-card-foreground">{file.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                        >
+                          <X size={16} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-4 pt-6 border-t border-border">
+            <Button 
+              type="button" 
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              data-testid="button-cancel"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              data-testid="button-save-project"
+            >
+              {isLoading ? "Saving..." : project ? "Update Project" : "Create Project"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

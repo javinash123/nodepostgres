@@ -1,0 +1,10 @@
+run = "npm run dev"
+
+[interpreter]
+command = ["bash"]
+
+[env]
+NODE_ENV = "development"
+
+[shell]
+program = "/bin/bash"
