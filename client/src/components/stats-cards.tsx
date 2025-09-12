@@ -22,11 +22,11 @@ export function StatsCards({ selectedFinancialYear = "all" }: StatsCardsProps) {
     queryKey: ['/api/projects'],
   });
   
-  const { data: clients, isLoading: clientsLoading } = useQuery({
+  const { data: clients, isLoading: clientsLoading } = useQuery<any[]>({
     queryKey: ['/api/clients'],
   });
   
-  const { data: employees, isLoading: employeesLoading } = useQuery({
+  const { data: employees, isLoading: employeesLoading } = useQuery<any[]>({
     queryKey: ['/api/employees'],
   });
 

@@ -1,4 +1,4 @@
-import { users, clients, projects, projectExtensions, projectFiles, employees, projectEmployees, type User, type InsertUser, type Client, type InsertClient, type Project, type InsertProject, type ProjectExtension, type InsertProjectExtension, type ProjectFile, type InsertProjectFile, type Employee, type InsertEmployee, type ProjectEmployee, type InsertProjectEmployee, type ProjectWithDetails } from "@shared/schema";
+import { users, clients, projects, projectExtensions, projectFiles, employees, projectEmployees, appSettings, type User, type InsertUser, type Client, type InsertClient, type Project, type InsertProject, type ProjectExtension, type InsertProjectExtension, type ProjectFile, type InsertProjectFile, type Employee, type InsertEmployee, type ProjectEmployee, type InsertProjectEmployee, type ProjectWithDetails, type AppSettings, type InsertAppSettings } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, count } from "drizzle-orm";
 
@@ -51,6 +51,10 @@ export interface IStorage {
     totalClients: number;
     totalEmployees: number;
   }>;
+
+  // App Settings
+  getAppSettings(): Promise<AppSettings>;
+  updateAppSettings(settings: InsertAppSettings): Promise<AppSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -293,6 +297,39 @@ export class DatabaseStorage implements IStorage {
       totalClients: totalClientsResult.count,
       totalEmployees: totalEmployeesResult.count,
     };
+  }
+
+  async getAppSettings(): Promise<AppSettings> {
+    // Get the first (and should be only) settings record
+    const [settings] = await db.select().from(appSettings).limit(1);
+    
+    if (settings) {
+      return settings;
+    }
+    
+    // Create default settings if none exist
+    const defaultSettings: InsertAppSettings = {
+      appName: "ProManage",
+      appDescription: "IT Project Management System",
+      primaryColor: "#3b82f6"
+    };
+    
+    const [newSettings] = await db.insert(appSettings).values(defaultSettings).returning();
+    return newSettings;
+  }
+
+  async updateAppSettings(settings: InsertAppSettings): Promise<AppSettings> {
+    // Get current settings
+    const current = await this.getAppSettings();
+    
+    // Update the settings
+    const [updated] = await db
+      .update(appSettings)
+      .set({ ...settings, updatedAt: new Date() })
+      .where(eq(appSettings.id, current.id))
+      .returning();
+    
+    return updated;
   }
 }
 

@@ -7,6 +7,9 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
+
 // Configure session middleware
 app.use(session({
   secret: process.env.SESSION_SECRET || 'promanage-secret-key-2025',

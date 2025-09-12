@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertProjectSchema, insertProjectExtensionSchema, insertEmployeeSchema } from "@shared/schema";
+import { insertClientSchema, insertProjectSchema, insertProjectExtensionSchema, insertEmployeeSchema, insertAppSettingsSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -341,6 +341,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: 'Failed to remove employee assignment' });
+    }
+  });
+
+  // App Settings routes
+  app.get("/api/settings", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.getAppSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch app settings' });
+    }
+  });
+
+  app.put("/api/settings", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertAppSettingsSchema.parse(req.body);
+      const settings = await storage.updateAppSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      res.status(400).json({ message: 'Invalid settings data' });
     }
   });
 

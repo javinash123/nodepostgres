@@ -118,6 +118,15 @@ export const projectEmployeesRelations = relations(projectEmployees, ({ one }) =
   }),
 }));
 
+export const appSettings = pgTable("app_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  appName: text("app_name").notNull().default("ProManage"),
+  appDescription: text("app_description").default("IT Project Management System"),
+  logoUrl: text("logo_url"),
+  primaryColor: text("primary_color").default("#3b82f6"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -166,6 +175,11 @@ export const insertProjectEmployeeSchema = createInsertSchema(projectEmployees).
   assignedAt: true,
 });
 
+export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -187,6 +201,9 @@ export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 
 export type ProjectEmployee = typeof projectEmployees.$inferSelect;
 export type InsertProjectEmployee = z.infer<typeof insertProjectEmployeeSchema>;
+
+export type AppSettings = typeof appSettings.$inferSelect;
+export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
 
 // Extended types for API responses
 export type ProjectWithDetails = Project & {

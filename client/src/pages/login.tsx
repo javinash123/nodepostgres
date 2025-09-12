@@ -3,16 +3,24 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChartGantt } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChartGantt, Settings2 } from "lucide-react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { login } from "../lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import type { AppSettings } from "@shared/schema";
 
 export default function Login() {
   const [username, setUsername] = useState("admin@promanage.com");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Get app settings for branding
+  const { data: settings } = useQuery<AppSettings>({
+    queryKey: ['/api/settings'],
+    retry: false, // Don't retry if fails (not authenticated yet)
+    refetchOnWindowFocus: false,
+  });
 
   const loginMutation = useMutation({
     mutationFn: ({ username, password }: { username: string; password: string }) => 
@@ -53,10 +61,26 @@ export default function Login() {
           <CardContent className="p-8">
             <div className="text-center mb-8">
               <div className="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-4">
-                <ChartGantt className="text-primary-foreground text-2xl" />
+                {settings?.logoUrl ? (
+                  <img 
+                    src={settings.logoUrl} 
+                    alt="Logo" 
+                    className="w-10 h-10 object-contain" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : (
+                  <ChartGantt className="text-primary-foreground text-2xl" />
+                )}
               </div>
-              <h1 className="text-2xl font-bold text-card-foreground">ProManage</h1>
-              <p className="text-muted-foreground mt-2">IT Project Management System</p>
+              <h1 className="text-2xl font-bold text-card-foreground">
+                {settings?.appName || "ProManage"}
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                {settings?.appDescription || "IT Project Management System"}
+              </p>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6" data-testid="login-form">

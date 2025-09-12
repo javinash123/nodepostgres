@@ -358,7 +358,6 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="planning">Planning</SelectItem>
                   <SelectItem value="in-progress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="on-hold">On Hold</SelectItem>
