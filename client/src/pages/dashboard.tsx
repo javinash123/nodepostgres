@@ -59,33 +59,52 @@ export default function Dashboard() {
 
     const monthlyData = new Map<string, { month: string, sales: number, projectCount: number }>();
     
-    // Find date range from all projects to include all project months
-    const allProjectDates = filteredProjects.flatMap(project => {
-      const dates = [new Date(project.startDate)];
-      if (project.completionDate) {
-        dates.push(new Date(project.completionDate));
-      }
-      return dates;
-    });
-    
-    if (allProjectDates.length === 0) return [];
-
-    // Get min and max dates from projects
-    const minDate = new Date(Math.min(...allProjectDates.map(d => d.getTime())));
-    const maxDate = new Date(Math.max(...allProjectDates.map(d => d.getTime())));
-    
-    // Extend range to include at least last 12 months and future months if projects exist
+    let startDate: Date;
+    let endDate: Date;
     const now = new Date();
-    const startDate = new Date(Math.min(minDate.getTime(), now.getTime() - 11 * 30 * 24 * 60 * 60 * 1000));
-    const endDate = new Date(Math.max(maxDate.getTime(), now.getTime()));
-
-    // Generate all months in the range
-    const currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    const finalDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
     
-    while (currentDate <= finalDate) {
-      const monthKey = currentDate.toISOString().slice(0, 7); // YYYY-MM format
-      const monthName = currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    if (selectedFinancialYear === "all") {
+      // For "All Years", show from oldest project start date to current month
+      // Parse dates safely to avoid timezone issues
+      const parseProjectDate = (dateStr: string) => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return { year, month: month - 1 }; // Convert to 0-indexed month
+      };
+      
+      const projectStartDates = filteredProjects.map(project => {
+        const startDateStr = typeof project.startDate === 'string' ? project.startDate : project.startDate.toISOString().split('T')[0];
+        return parseProjectDate(startDateStr);
+      });
+      
+      if (projectStartDates.length === 0) return [];
+      
+      // Find oldest year and month
+      const oldestYearMonth = projectStartDates.reduce((oldest, current) => {
+        if (current.year < oldest.year || (current.year === oldest.year && current.month < oldest.month)) {
+          return current;
+        }
+        return oldest;
+      });
+      
+      startDate = new Date(oldestYearMonth.year, oldestYearMonth.month, 1);
+      endDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else {
+      // For specific financial year, show April to March of that FY
+      const [startYear] = selectedFinancialYear.split('-').map(Number);
+      startDate = new Date(startYear, 3, 1); // April (month 3 in 0-indexed)
+      endDate = new Date(startYear + 1, 2, 1); // March of next year (month 2 in 0-indexed)
+    }
+
+    // Generate all months in the range - fix the month iteration
+    const currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const finalMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    
+    while (currentMonth <= finalMonth) {
+      // Use local date formatting to avoid timezone issues
+      const year = currentMonth.getFullYear();
+      const month = String(currentMonth.getMonth() + 1).padStart(2, '0'); // getMonth() is 0-indexed
+      const monthKey = `${year}-${month}`; // YYYY-MM format
+      const monthName = currentMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
       
       monthlyData.set(monthKey, {
         month: monthName,
@@ -93,29 +112,59 @@ export default function Dashboard() {
         projectCount: 0
       });
       
-      currentDate.setMonth(currentDate.getMonth() + 1);
+      // Move to next month
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
     }
 
     // Aggregate sales by month based on project START date (as requested by user)
     filteredProjects.forEach(project => {
-      // Always use start date for monthly chart display
-      const projectDate = new Date(project.startDate);
-      const monthKey = projectDate.toISOString().slice(0, 7);
+      // Parse the start date safely to avoid timezone issues  
+      const startDateStr = typeof project.startDate === 'string' ? project.startDate : project.startDate.toISOString().split('T')[0];
+      const dateParts = startDateStr.split('-');
+      if (dateParts.length !== 3) {
+        console.warn('Invalid start date format for project:', project.id, project.startDate);
+        return;
+      }
+      
+      const [yearStr, monthStr, dayStr] = dateParts;
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      
+      // Skip invalid dates
+      if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        console.warn('Invalid start date values for project:', project.id, project.startDate);
+        return;
+      }
+      
+      const monthKey = `${year}-${monthStr.padStart(2, '0')}`; // YYYY-MM format
       
       if (monthlyData.has(monthKey)) {
         const data = monthlyData.get(monthKey)!;
-        data.sales += parseFloat(project.totalCost); // Use total cost including extensions
+        // Ensure totalCost is properly parsed - handle both string and number
+        const totalCost = typeof project.totalCost === 'string' ? parseFloat(project.totalCost) : project.totalCost;
+        data.sales += isNaN(totalCost) ? 0 : totalCost;
         data.projectCount += 1;
         monthlyData.set(monthKey, data);
+      } else {
+        // If month key doesn't exist, add it dynamically (shouldn't happen but safety net)
+        const reconstructedDate = new Date(year, month - 1, 1);
+        const monthName = reconstructedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const totalCost = typeof project.totalCost === 'string' ? parseFloat(project.totalCost) : project.totalCost;
+        monthlyData.set(monthKey, {
+          month: monthName,
+          sales: isNaN(totalCost) ? 0 : totalCost,
+          projectCount: 1
+        });
       }
     });
 
-    return Array.from(monthlyData.values()).sort((a, b) => {
-      // Sort by date
-      const dateA = new Date(a.month + ' 1');
-      const dateB = new Date(b.month + ' 1');
-      return dateA.getTime() - dateB.getTime();
-    });
+    // Convert to array and sort by date (not by month string)
+    const result = Array.from(monthlyData.entries())
+      .map(([key, value]) => ({ ...value, sortKey: key }))
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+      .map(({ sortKey, ...rest }) => rest);
+
+    return result;
   }, [filteredProjects]);
 
   return (

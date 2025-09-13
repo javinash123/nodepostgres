@@ -3,11 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChartGantt, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { login } from "../lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import type { AppSettings } from "@shared/schema";
+import promanageLogo from "@/assets/promanage-logo.png";
 
 export default function Login() {
   const [username, setUsername] = useState("admin@promanage.com");
@@ -60,19 +61,23 @@ export default function Login() {
         <Card className="shadow-xl border-border">
           <CardContent className="p-8">
             <div className="text-center mb-8">
-              <div className="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-4">
+              <div className="mx-auto w-16 h-16 flex items-center justify-center mb-4">
                 {settings?.logoUrl ? (
                   <img 
                     src={settings.logoUrl} 
                     alt="Logo" 
-                    className="w-10 h-10 object-contain" 
+                    className="w-16 h-16 object-contain" 
                     onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = promanageLogo;
                     }}
                   />
                 ) : (
-                  <ChartGantt className="text-primary-foreground text-2xl" />
+                  <img 
+                    src={promanageLogo}
+                    alt="ProManage Logo" 
+                    className="w-16 h-16 object-contain" 
+                  />
                 )}
               </div>
               <h1 className="text-2xl font-bold text-card-foreground">

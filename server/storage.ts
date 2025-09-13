@@ -115,12 +115,13 @@ export class DatabaseStorage implements IStorage {
       const files = await this.getProjectFiles(row.projects.id);
       const assignedEmployees = await this.getProjectEmployees(row.projects.id);
       
-      // Calculate total cost
-      const baseBudget = parseFloat(row.projects.budget || '0');
-      const extensionCosts = extensions.reduce((sum, ext) => {
-        return sum + parseFloat(ext.extendedBudget || '0');
+      // Calculate total cost using integer cents to avoid floating-point precision issues
+      const toCents = (value: string | number) => Math.round(Number(value || '0') * 100);
+      const baseCents = toCents(row.projects.budget);
+      const extensionCents = extensions.reduce((sum, ext) => {
+        return sum + toCents(ext.extendedBudget || '0');
       }, 0);
-      const totalCost = (baseBudget + extensionCosts).toFixed(2);
+      const totalCost = ((baseCents + extensionCents) / 100).toFixed(2);
       
       result.push({
         ...row.projects,
@@ -148,12 +149,13 @@ export class DatabaseStorage implements IStorage {
     const files = await this.getProjectFiles(id);
     const assignedEmployees = await this.getProjectEmployees(id);
 
-    // Calculate total cost
-    const baseBudget = parseFloat(result.projects.budget || '0');
-    const extensionCosts = extensions.reduce((sum, ext) => {
-      return sum + parseFloat(ext.extendedBudget || '0');
+    // Calculate total cost using integer cents to avoid floating-point precision issues
+    const toCents = (value: string | number) => Math.round(Number(value || '0') * 100);
+    const baseCents = toCents(result.projects.budget);
+    const extensionCents = extensions.reduce((sum, ext) => {
+      return sum + toCents(ext.extendedBudget || '0');
     }, 0);
-    const totalCost = (baseBudget + extensionCosts).toFixed(2);
+    const totalCost = ((baseCents + extensionCents) / 100).toFixed(2);
 
     return {
       ...result.projects,

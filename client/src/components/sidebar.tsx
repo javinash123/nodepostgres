@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import type { AppSettings } from "@shared/schema";
 import { logout } from "../lib/auth";
+import promanageLogo from "@/assets/promanage-logo.png";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
@@ -37,19 +38,23 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:bg-card lg:border-r lg:border-border">
       <div className="flex items-center px-6 py-4 border-b border-border">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
+        <div className="w-8 h-8 flex items-center justify-center mr-3">
           {settings?.logoUrl ? (
             <img 
               src={settings.logoUrl} 
               alt="Logo" 
-              className="w-6 h-6 object-contain" 
+              className="w-8 h-8 object-contain" 
               onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = promanageLogo;
               }}
             />
           ) : (
-            <ChartGantt className="text-primary-foreground" size={20} />
+            <img 
+              src={promanageLogo}
+              alt="ProManage Logo" 
+              className="w-8 h-8 object-contain" 
+            />
           )}
         </div>
         <span className="text-lg font-semibold text-card-foreground">
