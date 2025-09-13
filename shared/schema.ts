@@ -81,6 +81,7 @@ export const projectEmployees = pgTable("project_employees", {
   projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  unassignedAt: timestamp("unassigned_at"), // Track when employee leaves project
 });
 
 // Project status history for tracking hold/resume cycles

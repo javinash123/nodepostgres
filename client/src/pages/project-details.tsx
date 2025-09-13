@@ -223,7 +223,19 @@ export default function ProjectDetails() {
     if (!project) return 0;
     
     const startDate = new Date(project.startDate);
-    const endDate = project.completionDate ? new Date(project.completionDate) : new Date(project.endDate);
+    
+    // Use completion date if project is completed, 
+    // otherwise use the latest extension end date if available,
+    // otherwise use the original project end date
+    let endDate: Date;
+    if (project.completionDate) {
+      endDate = new Date(project.completionDate);
+    } else if (project.lastExtensionDate) {
+      endDate = new Date(project.lastExtensionDate);
+    } else {
+      endDate = new Date(project.endDate);
+    }
+    
     const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     return Math.max(0, daysDiff);

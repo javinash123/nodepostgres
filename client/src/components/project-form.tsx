@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -204,7 +205,8 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
           </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" data-testid="project-form">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" data-testid="project-form">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="name">Project Name *</Label>
@@ -222,29 +224,29 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
             
             <div>
               <Label htmlFor="clientId">Client Name *</Label>
-              <Select 
-                value={form.watch("clientId") || ""} 
-                onValueChange={(value) => form.setValue("clientId", value)}
-              >
-                <SelectTrigger data-testid="select-client">
-                  <SelectValue placeholder="Select client">
-                    {form.watch("clientId") ? 
-                      clients?.find(c => c.id === form.watch("clientId"))?.name || "Select client"
-                      : "Select client"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {clients?.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.clientId && (
-                <p className="text-sm text-destructive mt-1">{form.formState.errors.clientId.message}</p>
-              )}
+              <FormField
+                control={form.control}
+                name="clientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-client">
+                          <SelectValue placeholder="Select client" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {clients?.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
             
             <div>
@@ -450,6 +452,7 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
             </Button>
           </div>
         </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
