@@ -11,8 +11,12 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/uploads', express.static('uploads'));
 
 // Configure session middleware
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("SESSION_SECRET environment variable is required in production");
+}
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'promanage-secret-key-2025',
+  secret: process.env.SESSION_SECRET || 'dev-only-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {

@@ -1,11 +1,11 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertProjectSchema, insertProjectExtensionSchema, insertEmployeeSchema, insertAppSettingsSchema } from "@shared/schema";
+import bcrypt from 'bcrypt';
+import { insertClientSchema, insertProjectSchema, insertProjectExtensionSchema, insertEmployeeSchema, insertEmployeeSalarySchema, insertAppSettingsSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import bcrypt from "bcrypt";
 
 // Extend Request type to include session
 declare module 'express-session' {
@@ -48,21 +48,49 @@ const upload = multer({
   }
 });
 
+// Middleware to check authentication
+const requireAuth = (req: Request, res: any, next: any) => {
+  if (!req.session?.userId) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  next();
+};
+
+// Password validation function
+const validatePassword = (password: string): { isValid: boolean; message?: string } => {
+  if (!password || password.length < 8) {
+    return { isValid: false, message: 'Password must be at least 8 characters long' };
+  }
+  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number' };
+  }
+  return { isValid: true };
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Create default admin user on startup
+  await storage.createDefaultAdmin();
+  
   // Auth routes
   app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
       
-      // For now, use hardcoded admin credentials
-      // In production, hash the password properly
-      if (username === 'admin@promanage.com' && password === 'admin123') {
-        req.session.userId = 'admin';
-        res.json({ success: true, user: { id: 'admin', username } });
-      } else {
-        res.status(401).json({ message: 'Invalid credentials' });
+      // Use database authentication
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid credentials' });
       }
+      
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+      
+      req.session.userId = user.id;
+      res.json({ success: true, user: { id: user.id, username: user.username } });
     } catch (error) {
+      console.error('Login error:', error);
       res.status(500).json({ message: 'Login failed' });
     }
   });
@@ -73,21 +101,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get("/api/me", (req, res) => {
+  app.post("/api/change-password", requireAuth, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      
+      // Validate new password
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({ message: passwordValidation.message });
+      }
+      
+      // Get current user
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: 'Current password is incorrect' });
+      }
+      
+      // Check if new password is different from current password
+      const isSamePassword = await bcrypt.compare(newPassword, user.password);
+      if (isSamePassword) {
+        return res.status(400).json({ message: 'New password must be different from current password' });
+      }
+      
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      
+      // Update password
+      const success = await storage.updateUserPassword(user.id, hashedNewPassword);
+      if (success) {
+        // Regenerate session for security
+        req.session.regenerate((err) => {
+          if (err) {
+            console.error('Session regeneration error:', err);
+            return res.status(500).json({ message: 'Password updated but session renewal failed' });
+          }
+          req.session.userId = user.id;
+          res.json({ success: true, message: 'Password updated successfully' });
+        });
+      } else {
+        res.status(500).json({ message: 'Failed to update password' });
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+
+  app.get("/api/me", async (req, res) => {
     if (req.session.userId) {
-      res.json({ id: req.session.userId, username: 'admin@promanage.com' });
+      const user = await storage.getUser(req.session.userId);
+      if (user) {
+        res.json({ id: user.id, username: user.username });
+      } else {
+        res.status(401).json({ message: 'User not found' });
+      }
     } else {
       res.status(401).json({ message: 'Not authenticated' });
     }
   });
-
-  // Middleware to check authentication
-  const requireAuth = (req: Request, res: any, next: any) => {
-    if (!req.session?.userId) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-    next();
-  };
 
   // Stats route
   app.get("/api/stats", requireAuth, async (req, res) => {
@@ -314,6 +391,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: 'Failed to delete employee' });
+    }
+  });
+
+  // Employee Salary Management routes
+  app.get("/api/employees/:id/salaries", requireAuth, async (req, res) => {
+    try {
+      const salaries = await storage.getEmployeeSalaryHistory(req.params.id);
+      res.json(salaries);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch employee salary history' });
+    }
+  });
+
+  app.post("/api/employees/:id/salaries", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertEmployeeSalarySchema.parse({
+        ...req.body,
+        employeeId: req.params.id
+      });
+      const salary = await storage.createEmployeeSalary(validatedData);
+      res.status(201).json(salary);
+    } catch (error) {
+      res.status(400).json({ message: 'Invalid salary data' });
+    }
+  });
+
+  app.get("/api/employees/:id/current-salary", requireAuth, async (req, res) => {
+    try {
+      const { financialYear } = req.query;
+      const salary = await storage.getEmployeeCurrentSalary(
+        req.params.id, 
+        financialYear as string
+      );
+      if (salary) {
+        res.json(salary);
+      } else {
+        res.status(404).json({ message: 'No salary data found' });
+      }
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch current salary' });
+    }
+  });
+
+  app.get("/api/salaries/financial-year/:year", requireAuth, async (req, res) => {
+    try {
+      const salaries = await storage.getEmployeeSalariesByFinancialYear(req.params.year);
+      res.json(salaries);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch salaries for financial year' });
+    }
+  });
+
+  // Profit/Loss Analysis route
+  app.get("/api/analysis/profit-loss", requireAuth, async (req, res) => {
+    try {
+      const analysis = await storage.calculateProjectProfitLoss();
+      res.json(analysis);
+    } catch (error) {
+      console.error('Profit/Loss Analysis Error:', error);
+      res.status(500).json({ message: 'Failed to calculate profit/loss analysis' });
     }
   });
 

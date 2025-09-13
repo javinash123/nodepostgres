@@ -17,7 +17,7 @@ A comprehensive project management web application designed specifically for IT 
 ## Technology Stack
 - **Frontend**: React with TypeScript, Tailwind CSS, shadcn/ui components
 - **Backend**: Node.js with Express
-- **Database**: In-memory storage (easily upgradeable to MySQL)
+- **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: Session-based admin login
 - **File Handling**: Local file storage with upload capability
 - **Mobile**: Responsive web design
@@ -31,6 +31,9 @@ A comprehensive project management web application designed specifically for IT 
 
 ## Recent Changes
 - Initial project setup started (2025-01-28)
+- Successfully imported from GitHub and configured for Replit environment (2025-09-13)
+- PostgreSQL database created and schema deployed
+- Application running on port 5000 with proper Replit proxy configuration
 
 ## User Preferences
 - Prefers deployment flexibility to own server

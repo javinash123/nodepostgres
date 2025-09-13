@@ -1,5 +1,5 @@
 run = "npm run dev"
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web"]
 
 [interpreter]
 command = ["bash"]
@@ -18,7 +18,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 38051
+localPort = 34123
 externalPort = 3000
 
 [agent]

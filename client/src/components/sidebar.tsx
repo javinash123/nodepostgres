@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { ChartGantt, BarChart3, FolderKanban, Users, UserCheck, LogOut, Settings2 } from "lucide-react";
+import { ChartGantt, BarChart3, FolderKanban, Users, UserCheck, LogOut, Settings2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import type { AppSettings } from "@shared/schema";
@@ -12,6 +12,7 @@ const navigation = [
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Employees", href: "/employees", icon: UserCheck },
+  { name: "Performance Report", href: "/performance", icon: TrendingUp },
   { name: "Settings", href: "/settings", icon: Settings2 },
 ];
 

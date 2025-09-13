@@ -32,9 +32,10 @@ const statusColors = {
 
 interface ProjectTableProps {
   projects?: ProjectWithDetails[];
+  title?: string;
 }
 
-export function ProjectTable({ projects: propProjects }: ProjectTableProps) {
+export function ProjectTable({ projects: propProjects, title = "Recent Projects" }: ProjectTableProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectWithDetails | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
@@ -142,6 +143,12 @@ export function ProjectTable({ projects: propProjects }: ProjectTableProps) {
                       <span className="text-muted-foreground">Due:</span>
                       <span>{formatDate(project.endDate)}</span>
                     </div>
+                    {project.lastExtensionDate && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Last Ext:</span>
+                        <span className="text-orange-600 dark:text-orange-400 font-medium">{formatDate(project.lastExtensionDate)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground flex items-center gap-1">
                         <Users className="h-3 w-3" />
@@ -200,7 +207,7 @@ export function ProjectTable({ projects: propProjects }: ProjectTableProps) {
       <Card className="border-border">
         <CardHeader className="border-b border-border">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-card-foreground">Recent Projects</h2>
+            <h2 className="text-lg font-semibold text-card-foreground">{title}</h2>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -258,6 +265,7 @@ export function ProjectTable({ projects: propProjects }: ProjectTableProps) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Team</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">End Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Extension</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
@@ -265,7 +273,7 @@ export function ProjectTable({ projects: propProjects }: ProjectTableProps) {
             <tbody className="bg-card divide-y divide-border">
               {projects?.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
                     No projects found. Create your first project to get started.
                   </td>
                 </tr>
@@ -296,6 +304,15 @@ export function ProjectTable({ projects: propProjects }: ProjectTableProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground" data-testid={`project-end-date-${project.id}`}>
                       {formatDate(project.endDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground" data-testid={`project-last-extension-${project.id}`}>
+                      {project.lastExtensionDate ? (
+                        <span className="text-orange-600 dark:text-orange-400 font-medium">
+                          {formatDate(project.lastExtensionDate)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">None</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground" data-testid={`project-budget-${project.id}`}>
                       {formatCurrency(project.totalCost)}

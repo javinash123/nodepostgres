@@ -217,6 +217,12 @@ export default function ProjectDetails() {
                       <span className="text-muted-foreground">End Date:</span>
                       <span data-testid="text-end-date">{format(new Date(project.endDate), 'MMM dd, yyyy')}</span>
                     </div>
+                    {project.lastExtensionDate && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Last Extension:</span>
+                        <span data-testid="text-last-extension-date">{format(new Date(project.lastExtensionDate), 'MMM dd, yyyy')}</span>
+                      </div>
+                    )}
                     {project.completionDate && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Completed:</span>

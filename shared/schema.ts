@@ -63,7 +63,16 @@ export const employees = pgTable("employees", {
   name: text("name").notNull(),
   employeeCode: text("employee_code").notNull().unique(),
   designation: text("designation").notNull(),
-  salary: decimal("salary", { precision: 12, scale: 2 }),
+  salary: decimal("salary", { precision: 12, scale: 2 }), // Keep for backward compatibility
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const employeeSalaries = pgTable("employee_salaries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  financialYear: text("financial_year").notNull(), // e.g., "2024-25"
+  salary: decimal("salary", { precision: 12, scale: 2 }).notNull(),
+  effectiveFrom: timestamp("effective_from").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -72,6 +81,16 @@ export const projectEmployees = pgTable("project_employees", {
   projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+});
+
+// Project status history for tracking hold/resume cycles
+export const projectStatusHistory = pgTable("project_status_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  status: text("status").notNull(), // planning, in-progress, completed, on-hold
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Relations
@@ -105,6 +124,14 @@ export const projectFilesRelations = relations(projectFiles, ({ one }) => ({
 
 export const employeesRelations = relations(employees, ({ many }) => ({
   projectEmployees: many(projectEmployees),
+  salaries: many(employeeSalaries),
+}));
+
+export const employeeSalariesRelations = relations(employeeSalaries, ({ one }) => ({
+  employee: one(employees, {
+    fields: [employeeSalaries.employeeId],
+    references: [employees.id],
+  }),
 }));
 
 export const projectEmployeesRelations = relations(projectEmployees, ({ one }) => ({
@@ -115,6 +142,13 @@ export const projectEmployeesRelations = relations(projectEmployees, ({ one }) =
   employee: one(employees, {
     fields: [projectEmployees.employeeId],
     references: [employees.id],
+  }),
+}));
+
+export const projectStatusHistoryRelations = relations(projectStatusHistory, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectStatusHistory.projectId],
+    references: [projects.id],
   }),
 }));
 
@@ -170,9 +204,24 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({
   salary: z.string().or(z.number()).optional().transform(val => val ? String(val) : undefined),
 });
 
+export const insertEmployeeSalarySchema = createInsertSchema(employeeSalaries).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  salary: z.string().or(z.number()).transform(val => String(val)),
+  effectiveFrom: z.string().transform(str => new Date(str)),
+});
+
 export const insertProjectEmployeeSchema = createInsertSchema(projectEmployees).omit({
   id: true,
   assignedAt: true,
+});
+
+export const insertProjectStatusHistorySchema = createInsertSchema(projectStatusHistory).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  changedAt: z.string().optional().transform(str => str ? new Date(str) : new Date()),
 });
 
 export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({
@@ -199,8 +248,19 @@ export type InsertProjectFile = z.infer<typeof insertProjectFileSchema>;
 export type Employee = typeof employees.$inferSelect;
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 
+export type EmployeeSalary = typeof employeeSalaries.$inferSelect;
+export type InsertEmployeeSalary = z.infer<typeof insertEmployeeSalarySchema>;
+
+export type EmployeeWithSalary = Employee & {
+  currentSalary?: EmployeeSalary;
+  salaries: EmployeeSalary[];
+};
+
 export type ProjectEmployee = typeof projectEmployees.$inferSelect;
 export type InsertProjectEmployee = z.infer<typeof insertProjectEmployeeSchema>;
+
+export type ProjectStatusHistory = typeof projectStatusHistory.$inferSelect;
+export type InsertProjectStatusHistory = z.infer<typeof insertProjectStatusHistorySchema>;
 
 export type AppSettings = typeof appSettings.$inferSelect;
 export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
@@ -211,5 +271,19 @@ export type ProjectWithDetails = Project & {
   extensions: ProjectExtension[];
   files: ProjectFile[];
   assignedEmployees: Employee[];
+  statusHistory: ProjectStatusHistory[];
   totalCost: string; // Calculated field: budget + sum of extension budgets
+  lastExtensionDate?: string; // Last extension end date (ISO string)
+};
+
+export type ProjectPerformanceData = {
+  projectId: string;
+  projectName: string;
+  budget: number;
+  actualCost: number;
+  profit: number;
+  profitMargin: number;
+  duration: number;
+  employeeCount: number;
+  status: string;
 };

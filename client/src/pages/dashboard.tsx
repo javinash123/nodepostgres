@@ -53,6 +53,13 @@ export default function Dashboard() {
     );
   }, [projects, selectedFinancialYear]);
 
+  // Filter for recent projects - show only in-progress projects
+  const recentInProgressProjects = useMemo(() => {
+    if (!filteredProjects) return [];
+    
+    return filteredProjects.filter(project => project.status === 'in-progress');
+  }, [filteredProjects]);
+
   // Generate month-on-month sales data
   const salesData = useMemo(() => {
     if (!filteredProjects?.length) return [];
@@ -362,7 +369,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           
-          <ProjectTable projects={filteredProjects} />
+          <ProjectTable projects={recentInProgressProjects} title="In-Progress Projects" />
         </div>
       </main>
     </div>

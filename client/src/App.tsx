@@ -11,6 +11,7 @@ import Projects from "./pages/projects";
 import ProjectDetails from "./pages/project-details";
 import Clients from "./pages/clients";
 import Employees from "./pages/employees";
+import PerformanceReport from "./pages/performance-report";
 import Settings from "./pages/settings";
 import NotFound from "@/pages/not-found";
 
@@ -25,6 +26,7 @@ function AuthenticatedApp() {
       <Route path="/projects/:id" component={ProjectDetails} />
       <Route path="/clients" component={Clients} />
       <Route path="/employees" component={Employees} />
+      <Route path="/performance" component={PerformanceReport} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
