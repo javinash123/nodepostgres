@@ -227,7 +227,12 @@ export function ProjectForm({ project, open, onOpenChange }: ProjectFormProps) {
                 onValueChange={(value) => form.setValue("clientId", value)}
               >
                 <SelectTrigger data-testid="select-client">
-                  <SelectValue placeholder="Select client" />
+                  <SelectValue placeholder="Select client">
+                    {form.watch("clientId") ? 
+                      clients?.find(c => c.id === form.watch("clientId"))?.name || "Select client"
+                      : "Select client"
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {clients?.map((client) => (

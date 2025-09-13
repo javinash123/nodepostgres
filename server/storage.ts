@@ -86,6 +86,7 @@ export interface IStorage {
   getProjectEmployees(projectId: string): Promise<Employee[]>;
   assignEmployeeToProject(assignment: InsertProjectEmployee): Promise<ProjectEmployee>;
   removeEmployeeFromProject(projectId: string, employeeId: string): Promise<boolean>;
+  removeAllEmployeesFromProject(projectId: string): Promise<boolean>;
 
   // Project Status History
   getProjectStatusHistory(projectId: string): Promise<ProjectStatusHistory[]>;
@@ -411,17 +412,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(employeeSalaries.employeeId, desc(employeeSalaries.effectiveFrom));
   }
 
-  // Utility function to calculate working days between two dates (excluding weekends)
+  // Utility function to calculate all days between two dates (including weekends)
   private calculateWorkingDays(startDate: Date, endDate: Date): number {
     let workingDays = 0;
     const currentDate = new Date(startDate);
     
     while (currentDate <= endDate) {
-      const dayOfWeek = currentDate.getDay();
-      // Monday = 1, Friday = 5, skip Saturday = 6 and Sunday = 0
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        workingDays++;
-      }
+      // Process all days (including weekends) as working days
+      workingDays++;
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
@@ -537,8 +535,16 @@ export class DatabaseStorage implements IStorage {
     
     const assignmentStart = new Date(assignment.assignedAt);
     
-    // Assignment can't start before project starts
-    const effectiveStart = assignmentStart > projectStartDate ? assignmentStart : projectStartDate;
+    // For completed projects, if assignment was recorded after project completion,
+    // assume the employee worked from project start (common when adding historical data)
+    let effectiveStart: Date;
+    if (assignmentStart > projectEndDate) {
+      // Assignment recorded after project ended - assume worked from project start
+      effectiveStart = projectStartDate;
+    } else {
+      // Assignment can't start before project starts
+      effectiveStart = assignmentStart > projectStartDate ? assignmentStart : projectStartDate;
+    }
     
     // Since we don't track unassignment, assume assignment lasts until project completion
     // but don't extend beyond project end date
@@ -554,8 +560,8 @@ export class DatabaseStorage implements IStorage {
   private async getEmployeeSalaryOnDate(employeeId: string, date: Date): Promise<number> {
     const financialYear = this.getFinancialYearForDate(date);
     
-    // Get all salary records for this employee in this financial year
-    const salaryRecords = await db
+    // First try: Get salary records for this employee in this financial year (exact match)
+    let salaryRecords = await db
       .select()
       .from(employeeSalaries)
       .where(
@@ -565,6 +571,29 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(employeeSalaries.effectiveFrom));
+    
+    // If no exact match, try with "FY " prefix (handle format differences)
+    if (salaryRecords.length === 0) {
+      salaryRecords = await db
+        .select()
+        .from(employeeSalaries)
+        .where(
+          and(
+            eq(employeeSalaries.employeeId, employeeId),
+            eq(employeeSalaries.financialYear, `FY ${financialYear}`)
+          )
+        )
+        .orderBy(desc(employeeSalaries.effectiveFrom));
+    }
+    
+    // If still no match, get all salary records for this employee and find the right one
+    if (salaryRecords.length === 0) {
+      salaryRecords = await db
+        .select()
+        .from(employeeSalaries)
+        .where(eq(employeeSalaries.employeeId, employeeId))
+        .orderBy(desc(employeeSalaries.effectiveFrom));
+    }
     
     // Find the salary effective on the given date
     for (const record of salaryRecords) {
@@ -594,8 +623,8 @@ export class DatabaseStorage implements IStorage {
     const financialYearCosts = new Map<string, number>();
     const employeeUtilization = new Map<string, {workingDays: number, totalDaysInAnalysis: number}>();
     
-    // Cache for employee salaries by financial year
-    const salaryCache = new Map<string, Map<string, number>>(); // employeeId -> financialYear -> salary
+    // Cache for employee salaries by date
+    const salaryCache = new Map<string, Map<string, number>>(); // employeeId -> dateKey -> dailySalary
     
     const today = new Date();
     
@@ -626,109 +655,111 @@ export class DatabaseStorage implements IStorage {
     // Day-by-day analysis
     const currentDate = new Date(earliestStart);
     while (currentDate <= analysisEndDate) {
-      const dayOfWeek = currentDate.getDay();
+      // Process all days (including weekends) as working days
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const financialYear = this.getFinancialYearForDate(currentDate);
       
-      // Skip weekends
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        const financialYear = this.getFinancialYearForDate(currentDate);
+      // Update total analysis days for all employees
+      for (const employee of allEmployees) {
+        const util = employeeUtilization.get(employee.id)!;
+        util.totalDaysInAnalysis++;
+      }
+      
+      // Find all active projects and assigned employees for this date
+      const activeProjectEmployees = new Map<string, string[]>(); // projectId -> employeeIds
+      
+      for (const project of allProjects) {
+        const projectStartDate = new Date(project.startDate);
+        const projectEndDate = this.getProjectEffectiveEndDate(project);
         
-        // Update total analysis days for all employees
-        for (const employee of allEmployees) {
-          const util = employeeUtilization.get(employee.id)!;
-          util.totalDaysInAnalysis++;
-        }
-        
-        // Find all active projects and assigned employees for this date
-        const activeProjectEmployees = new Map<string, string[]>(); // projectId -> employeeIds
-        
-        for (const project of allProjects) {
-          const projectStartDate = new Date(project.startDate);
-          const projectEndDate = this.getProjectEffectiveEndDate(project);
+        // Check if date falls within project duration
+        if (currentDate >= projectStartDate && currentDate <= projectEndDate) {
+          // Check if project is not on hold on this date
+          const isOnHold = this.isProjectOnHoldOnDate([...project.statusHistory], currentDate);
           
-          // Check if date falls within project duration
-          if (currentDate >= projectStartDate && currentDate <= projectEndDate) {
-            // Check if project is not on hold on this date
-            const isOnHold = this.isProjectOnHoldOnDate([...project.statusHistory], currentDate);
+          if (!isOnHold) {
+            // Find employees assigned to this project on this date
+            const assignedEmployeeIds = [];
             
-            if (!isOnHold) {
-              // Find employees assigned to this project on this date
-              const assignedEmployeeIds = [];
+            for (const employee of project.assignedEmployees) {
+              const assignmentPeriod = await this.getEmployeeAssignmentPeriod(
+                employee.id, 
+                project.id, 
+                projectStartDate, 
+                projectEndDate
+              );
               
-              for (const employee of project.assignedEmployees) {
-                const assignmentPeriod = await this.getEmployeeAssignmentPeriod(
-                  employee.id, 
-                  project.id, 
-                  projectStartDate, 
-                  projectEndDate
-                );
-                
-                // Check if employee was assigned and working on this date
-                if (currentDate >= assignmentPeriod.start && 
-                    assignmentPeriod.end && currentDate <= assignmentPeriod.end) {
-                  assignedEmployeeIds.push(employee.id);
-                }
+              // Check if employee was assigned and working on this date
+              if (currentDate >= assignmentPeriod.start && 
+                  assignmentPeriod.end && currentDate <= assignmentPeriod.end) {
+                assignedEmployeeIds.push(employee.id);
               }
-              
-              if (assignedEmployeeIds.length > 0) {
-                activeProjectEmployees.set(project.id, assignedEmployeeIds);
-              }
+            }
+            
+            if (assignedEmployeeIds.length > 0) {
+              activeProjectEmployees.set(project.id, assignedEmployeeIds);
             }
           }
         }
-        
-        // Calculate costs for this date
-        const employeeProjectCounts = new Map<string, number>(); // employeeId -> number of active projects
-        
-        // Count active projects per employee
-        for (const [, employeeIds] of Array.from(activeProjectEmployees.entries())) {
-          for (const employeeId of employeeIds) {
-            const count = employeeProjectCounts.get(employeeId) || 0;
-            employeeProjectCounts.set(employeeId, count + 1);
-          }
+      }
+      
+      // Calculate costs for this date
+      const employeeProjectCounts = new Map<string, number>(); // employeeId -> number of active projects
+      
+      // Count active projects per employee
+      for (const [, employeeIds] of Array.from(activeProjectEmployees.entries())) {
+        for (const employeeId of employeeIds) {
+          const count = employeeProjectCounts.get(employeeId) || 0;
+          employeeProjectCounts.set(employeeId, count + 1);
         }
-        
-        // Distribute costs
-        for (const [projectId, employeeIds] of Array.from(activeProjectEmployees.entries())) {
-          for (const employeeId of employeeIds) {
-            // Get salary effective on this specific date (accounts for mid-year changes)
-            const dateKey = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-            let employeeSalaries = salaryCache.get(employeeId);
-            if (!employeeSalaries) {
-              employeeSalaries = new Map();
-              salaryCache.set(employeeId, employeeSalaries);
-            }
+      }
+      
+      // Distribute costs
+      for (const [projectId, employeeIds] of Array.from(activeProjectEmployees.entries())) {
+        for (const employeeId of employeeIds) {
+          // Get salary effective on this specific date (accounts for mid-year changes)
+          const dateKey = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+          let employeeSalaries = salaryCache.get(employeeId);
+          if (!employeeSalaries) {
+            employeeSalaries = new Map();
+            salaryCache.set(employeeId, employeeSalaries);
+          }
+          
+          let dailySalary = employeeSalaries.get(dateKey);
+          if (dailySalary === undefined) {
+            const salaryOnDate = await this.getEmployeeSalaryOnDate(employeeId, currentDate);
+            // Calculate daily salary: Annual salary ÷ 12 months ÷ days in current month
+            const monthlySalary = salaryOnDate / 12;
+            const daysInCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+            dailySalary = monthlySalary / daysInCurrentMonth;
+            employeeSalaries.set(dateKey, dailySalary);
             
-            let dailySalary = employeeSalaries.get(dateKey);
-            if (dailySalary === undefined) {
-              const salaryOnDate = await this.getEmployeeSalaryOnDate(employeeId, currentDate);
-              // Use 260 working days per year instead of 365 calendar days
-              // This accounts for weekends (104 days) and holidays (~1 day)
-              dailySalary = salaryOnDate / 260;
-              employeeSalaries.set(dateKey, dailySalary);
-            }
+            // Debug logging to verify calculation
+            console.log(`DEBUG SALARY: Employee ${employeeId} on ${dateKey}:`);
+            console.log(`  Annual: ₹${salaryOnDate}, Monthly: ₹${monthlySalary.toFixed(2)}, Days in ${currentDate.getMonth() + 1}: ${daysInCurrentMonth}`);
+            console.log(`  Daily Rate: ₹${dailySalary.toFixed(2)}`);
+          }
+          
+          if (dailySalary > 0) {
+            // Distribute proportionally across active projects
+            const simultaneousProjects = employeeProjectCounts.get(employeeId) || 1;
+            const proportionalCost = dailySalary / simultaneousProjects;
             
-            if (dailySalary > 0) {
-              // Distribute proportionally across active projects
-              const simultaneousProjects = employeeProjectCounts.get(employeeId) || 1;
-              const proportionalCost = dailySalary / simultaneousProjects;
-              
-              // Add to project costs
-              const currentProjectCost = projectCosts.get(projectId) || 0;
-              projectCosts.set(projectId, currentProjectCost + proportionalCost);
-              
-              // Add to employee costs
-              const currentEmployeeCost = employeeCosts.get(employeeId) || 0;
-              employeeCosts.set(employeeId, currentEmployeeCost + proportionalCost);
-              
-              // Add to financial year costs
-              const currentFYCost = financialYearCosts.get(financialYear) || 0;
-              financialYearCosts.set(financialYear, currentFYCost + proportionalCost);
-              
-              // Update employee utilization
-              const util = employeeUtilization.get(employeeId)!;
-              util.workingDays++;
-            }
+            // Add to project costs
+            const currentProjectCost = projectCosts.get(projectId) || 0;
+            projectCosts.set(projectId, currentProjectCost + proportionalCost);
+            
+            // Add to employee costs
+            const currentEmployeeCost = employeeCosts.get(employeeId) || 0;
+            employeeCosts.set(employeeId, currentEmployeeCost + proportionalCost);
+            
+            // Add to financial year costs
+            const currentFYCost = financialYearCosts.get(financialYear) || 0;
+            financialYearCosts.set(financialYear, currentFYCost + proportionalCost);
+            
+            // Update employee utilization
+            const util = employeeUtilization.get(employeeId)!;
+            util.workingDays++;
           }
         }
       }
@@ -866,15 +897,13 @@ export class DatabaseStorage implements IStorage {
         let hasActivityInFY = false;
         
         while (currentDate <= analysisEndDate) {
-          const dayOfWeek = currentDate.getDay();
-          if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Working days only
-            const dayFY = this.getFinancialYearForDate(currentDate);
-            if (dayFY === financialYear) {
-              const isOnHold = this.isProjectOnHoldOnDate([...project.statusHistory], currentDate);
-              if (!isOnHold) {
-                hasActivityInFY = true;
-                break;
-              }
+          // Process all days (including weekends) as working days
+          const dayFY = this.getFinancialYearForDate(currentDate);
+          if (dayFY === financialYear) {
+            const isOnHold = this.isProjectOnHoldOnDate([...project.statusHistory], currentDate);
+            if (!isOnHold) {
+              hasActivityInFY = true;
+              break;
             }
           }
           currentDate.setDate(currentDate.getDate() + 1);
@@ -942,6 +971,12 @@ export class DatabaseStorage implements IStorage {
         eq(projectEmployees.employeeId, employeeId)
       ));
     return result.length > 0;
+  }
+
+  async removeAllEmployeesFromProject(projectId: string): Promise<boolean> {
+    const result = await db.delete(projectEmployees)
+      .where(eq(projectEmployees.projectId, projectId));
+    return true; // Return true even if no employees were assigned
   }
 
   async getProjectStatusHistory(projectId: string): Promise<ProjectStatusHistory[]> {

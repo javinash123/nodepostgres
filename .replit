@@ -1,5 +1,5 @@
 run = "npm run dev"
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "web", "postgresql-16"]
 
 [interpreter]
 command = ["bash"]
@@ -16,10 +16,6 @@ channel = "stable-25_05"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 34123
-externalPort = 3000
 
 [agent]
 expertMode = true
@@ -50,5 +46,5 @@ waitForPort = 5000
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["npm", "run", "start"]
+run = ["npm", "start"]
 build = ["npm", "run", "build"]

@@ -34,6 +34,9 @@ A comprehensive project management web application designed specifically for IT 
 - Successfully imported from GitHub and configured for Replit environment (2025-09-13)
 - PostgreSQL database created and schema deployed
 - Application running on port 5000 with proper Replit proxy configuration
+- **Critical Fix Applied (2025-09-13)**: Resolved salary unit mismatch causing 12x cost miscalculation in performance reports
+- Enhanced employee form with financial year-based salary management and complete salary history
+- Fixed backend cost calculation to accurately handle monthly-to-annual salary conversion
 
 ## User Preferences
 - Prefers deployment flexibility to own server

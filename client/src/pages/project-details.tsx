@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Globe, Smartphone, Monitor, DollarSign, Calendar, FileText, Plus, Download, Trash2, Eye, EyeOff, Users, User, Edit2, Save, X, ExternalLink } from "lucide-react";
+import { ArrowLeft, Globe, Smartphone, Monitor, DollarSign, Calendar, FileText, Plus, Download, Trash2, Eye, EyeOff, Users, User, Edit2, Save, X, ExternalLink, Clock, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
@@ -160,6 +160,75 @@ export default function ProjectDetails() {
     }).format(parseFloat(String(amount)));
   };
 
+  // Helper function to calculate days when project was in-progress
+  const getInProgressDays = () => {
+    if (!project?.statusHistory || project.statusHistory.length === 0) {
+      return 0;
+    }
+
+    // Sort status history by date
+    const sortedHistory = [...project.statusHistory].sort((a, b) => 
+      new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime()
+    );
+
+    let totalInProgressDays = 0;
+    let inProgressStart: Date | null = null;
+
+    // Add project start date as initial status if no history at project start
+    const projectStart = new Date(project.startDate);
+    const firstStatusChange = new Date(sortedHistory[0]?.changedAt || project.startDate);
+    
+    // If first status change is after project start, assume project started in-progress
+    if (firstStatusChange > projectStart) {
+      inProgressStart = projectStart;
+      const firstChangeStatus = sortedHistory[0]?.status;
+      if (firstChangeStatus !== 'in-progress') {
+        // Project was in-progress from start until first status change
+        const daysDiff = Math.floor((firstStatusChange.getTime() - projectStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        totalInProgressDays += daysDiff;
+        inProgressStart = null;
+      }
+    }
+
+    // Process each status change
+    for (let i = 0; i < sortedHistory.length; i++) {
+      const statusChange = sortedHistory[i];
+      const statusDate = new Date(statusChange.changedAt);
+
+      if (statusChange.status === 'in-progress') {
+        // Only set start if not already set (preserve existing inProgressStart)
+        if (!inProgressStart) {
+          inProgressStart = statusDate;
+        }
+      } else if (inProgressStart) {
+        // End of in-progress period
+        const daysDiff = Math.floor((statusDate.getTime() - inProgressStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        totalInProgressDays += daysDiff;
+        inProgressStart = null;
+      }
+    }
+
+    // If still in-progress at the end, calculate until completion or today
+    if (inProgressStart) {
+      const endDate = project.completionDate ? new Date(project.completionDate) : new Date();
+      const daysDiff = Math.floor((endDate.getTime() - inProgressStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      totalInProgressDays += daysDiff;
+    }
+
+    return totalInProgressDays;
+  };
+
+  // Helper function to calculate total project days
+  const getTotalProjectDays = () => {
+    if (!project) return 0;
+    
+    const startDate = new Date(project.startDate);
+    const endDate = project.completionDate ? new Date(project.completionDate) : new Date(project.endDate);
+    const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    return Math.max(0, daysDiff);
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -197,6 +266,7 @@ export default function ProjectDetails() {
               <TabsTrigger value="credentials">Credentials</TabsTrigger>
               <TabsTrigger value="files">Files ({project.files.length})</TabsTrigger>
               <TabsTrigger value="extensions">Extensions ({project.extensions.length})</TabsTrigger>
+              <TabsTrigger value="status-history">Status History ({project.statusHistory.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -556,6 +626,75 @@ export default function ProjectDetails() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="status-history">
+              <div className="space-y-6">
+                {/* Working Days Summary Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Working Days Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="text-center p-4 bg-muted/50 rounded-lg">
+                        <div className="text-2xl font-bold text-primary">{getInProgressDays()}</div>
+                        <div className="text-sm text-muted-foreground">Days in Progress</div>
+                      </div>
+                      <div className="text-center p-4 bg-muted/50 rounded-lg">
+                        <div className="text-2xl font-bold text-muted-foreground">{getTotalProjectDays()}</div>
+                        <div className="text-sm text-muted-foreground">Total Project Days</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Status Timeline */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Status Timeline
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {project.statusHistory.length > 0 ? (
+                      <div className="space-y-4">
+                        {[...project.statusHistory]
+                          .sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())
+                          .map((statusChange, index) => (
+                          <div key={statusChange.id} className="flex items-start gap-4">
+                            <div className="flex flex-col items-center">
+                              <div className={`w-3 h-3 rounded-full ${getStatusColor(statusChange.status)}`}></div>
+                              {index < project.statusHistory.length - 1 && (
+                                <div className="w-px h-8 bg-border"></div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge className={getStatusColor(statusChange.status)} variant="outline">
+                                  {statusChange.status.charAt(0).toUpperCase() + statusChange.status.slice(1).replace('-', ' ')}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">
+                                  {format(new Date(statusChange.changedAt), 'MMM dd, yyyy h:mm a')}
+                                </span>
+                              </div>
+                              {statusChange.notes && (
+                                <p className="text-sm text-muted-foreground mt-1">{statusChange.notes}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No status changes recorded for this project.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           </Tabs>
 

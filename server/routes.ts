@@ -468,6 +468,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Remove all employees from project
+  app.delete("/api/projects/:id/employees", requireAuth, async (req, res) => {
+    try {
+      const success = await storage.removeAllEmployeesFromProject(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to remove all employee assignments' });
+    }
+  });
+
   app.delete("/api/projects/:id/employees/:employeeId", requireAuth, async (req, res) => {
     try {
       const success = await storage.removeEmployeeFromProject(req.params.id, req.params.employeeId);
